@@ -34,7 +34,8 @@ const googleSheetsService = {
       console.log('Sending to Google Sheets:', sheetsData);
 
       // Send data to Google Apps Script
-      const response = await fetch(settings.googleSheetsUrl, {
+      // Using void to explicitly ignore the response
+      void await fetch(settings.googleSheetsUrl, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -73,7 +74,8 @@ const googleSheetsService = {
         totalAmount: 400
       };
 
-      const response = await fetch(url, {
+      // Using void to explicitly ignore the response
+      void await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
