@@ -155,11 +155,21 @@ function AdminSettings({ isOpen, onClose }) {
     setSuccess(false);
 
     try {
+      console.log('Starting to save settings:', settings);
+      
       // Save settings to Firebase
-      await dbService.updateAdminSettings(settings);
+      console.log('Calling dbService.updateAdminSettings...');
+      const result = await dbService.updateAdminSettings(settings);
+      console.log('Firebase save result:', result);
       
       // Also save to localStorage for backward compatibility
       localStorage.setItem('adminSettings', JSON.stringify(settings));
+      console.log('Settings saved to localStorage as backup');
+      
+      // Verify the save by reading back from Firebase
+      console.log('Verifying save by reading back from Firebase...');
+      const savedSettings = await dbService.getAdminSettings();
+      console.log('Settings read back from Firebase:', savedSettings);
       
       setSuccess(true);
       setTimeout(() => {
@@ -167,7 +177,7 @@ function AdminSettings({ isOpen, onClose }) {
       }, 3000);
     } catch (error) {
       console.error('Error saving settings:', error);
-      alert('حدث خطأ أثناء حفظ الإعدادات');
+      alert('حدث خطأ أثناء حفظ الإعدادات: ' + error.message);
     }
     
     setLoading(false);

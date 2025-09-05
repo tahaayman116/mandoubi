@@ -213,27 +213,44 @@ export const dbService = {
 
   async updateAdminSettings(settings) {
     try {
+      console.log('updateAdminSettings called with:', settings);
       const querySnapshot = await getDocs(collection(db, ADMIN_SETTINGS_COLLECTION));
+      console.log('Query snapshot empty?', querySnapshot.empty);
+      console.log('Number of docs found:', querySnapshot.size);
       
       if (!querySnapshot.empty) {
         // Update existing settings
-        const docRef = doc(db, ADMIN_SETTINGS_COLLECTION, querySnapshot.docs[0].id);
-        await updateDoc(docRef, {
+        const existingDoc = querySnapshot.docs[0];
+        console.log('Existing document ID:', existingDoc.id);
+        console.log('Existing document data:', existingDoc.data());
+        
+        const docRef = doc(db, ADMIN_SETTINGS_COLLECTION, existingDoc.id);
+        const updateData = {
           ...settings,
           updatedAt: new Date().toISOString()
-        });
-        return { id: querySnapshot.docs[0].id, ...settings };
+        };
+        console.log('Updating with data:', updateData);
+        
+        await updateDoc(docRef, updateData);
+        console.log('Document updated successfully');
+        return { id: existingDoc.id, ...settings };
       } else {
         // Create new settings document
-        const docRef = await addDoc(collection(db, ADMIN_SETTINGS_COLLECTION), {
+        console.log('Creating new settings document');
+        const newDocData = {
           ...settings,
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString()
-        });
+        };
+        console.log('Creating with data:', newDocData);
+        
+        const docRef = await addDoc(collection(db, ADMIN_SETTINGS_COLLECTION), newDocData);
+        console.log('New document created with ID:', docRef.id);
         return { id: docRef.id, ...settings };
       }
     } catch (error) {
       console.error('Error updating admin settings:', error);
+      console.error('Error details:', error.message, error.code);
       throw error;
     }
   },
