@@ -5,10 +5,18 @@ function AdminSettings({ isOpen, onClose }) {
   const { userProfile } = useFirebaseAuth();
   const [settings, setSettings] = useState({
     googleSheetsUrl: '',
-    enableGoogleSheets: false
+    enableGoogleSheets: false,
+    passwordNotificationUrl: ''
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [passwordData, setPasswordData] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: ''
+  });
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   // Load settings from localStorage on component mount
   useEffect(() => {
@@ -24,6 +32,96 @@ function AdminSettings({ isOpen, onClose }) {
       ...prev,
       [name]: type === 'checkbox' ? checked : value
     }));
+  };
+
+  const handlePasswordInputChange = (e) => {
+    const { name, value } = e.target;
+    setPasswordData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handlePasswordChange = async () => {
+    if (!passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword) {
+      alert('يرجى ملء جميع الحقول');
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      alert('كلمة المرور الجديدة وتأكيدها غير متطابقين');
+      return;
+    }
+
+    if (passwordData.newPassword.length < 6) {
+      alert('كلمة المرور الجديدة يجب أن تكون 6 أحرف على الأقل');
+      return;
+    }
+
+    // Check current password
+    const savedPassword = localStorage.getItem('adminPassword') || 'admin123';
+    if (passwordData.currentPassword !== savedPassword) {
+      alert('كلمة المرور الحالية غير صحيحة');
+      return;
+    }
+
+    setPasswordLoading(true);
+
+    try {
+      // Save new password
+      localStorage.setItem('adminPassword', passwordData.newPassword);
+
+      // Send notification to Google Sheets if URL is provided
+      if (settings.passwordNotificationUrl) {
+        await sendPasswordNotification(passwordData.newPassword);
+      }
+
+      setPasswordSuccess(true);
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+
+      setTimeout(() => {
+        setPasswordSuccess(false);
+      }, 3000);
+
+    } catch (error) {
+      console.error('Error changing password:', error);
+      alert('حدث خطأ أثناء تغيير كلمة المرور');
+    }
+
+    setPasswordLoading(false);
+  };
+
+  const sendPasswordNotification = async (newPassword) => {
+    try {
+      const notificationData = {
+        timestamp: new Date().toISOString(),
+        date: new Date().toLocaleDateString('ar-EG'),
+        time: new Date().toLocaleTimeString('ar-EG'),
+        adminName: userProfile?.name || 'مدير النظام',
+        newPassword: newPassword,
+        changeReason: 'تغيير كلمة المرور من لوحة التحكم',
+        ipAddress: 'N/A',
+        userAgent: navigator.userAgent
+      };
+
+      void await fetch(settings.passwordNotificationUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(notificationData),
+        mode: 'no-cors'
+      });
+
+      console.log('Password notification sent to Google Sheets');
+    } catch (error) {
+      console.error('Failed to send password notification:', error);
+      // Don't throw error here, as password change was successful
+    }
   };
 
   const handleSave = async () => {
@@ -136,6 +234,114 @@ function AdminSettings({ isOpen, onClose }) {
               </div>
             </div>
           )}
+
+          {passwordSuccess && (
+            <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200/50 text-green-700 px-4 py-3 rounded-xl backdrop-blur-sm">
+              <div className="flex items-center">
+                <svg className="w-5 h-5 ml-2" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                تم تغيير كلمة المرور بنجاح!
+              </div>
+            </div>
+          )}
+
+          {/* Password Change Section */}
+          <div className="bg-gradient-to-br from-red-50/50 to-pink-50/50 rounded-xl p-6 border border-red-200/30">
+            <div className="flex items-center mb-4">
+              <div className="w-8 h-8 bg-gradient-to-br from-red-500 to-pink-500 rounded-lg flex items-center justify-center ml-3">
+                <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+              </div>
+              <h3 className="text-lg font-semibold text-gray-800">تغيير كلمة مرور الإدارة</h3>
+            </div>
+
+            <div className="space-y-4">
+              {/* Current Password */}
+              <div>
+                <label htmlFor="currentPassword" className="block text-sm font-semibold text-gray-700 mb-2">
+                  كلمة المرور الحالية *
+                </label>
+                <input
+                  id="currentPassword"
+                  name="currentPassword"
+                  type="password"
+                  value={passwordData.currentPassword}
+                  onChange={handlePasswordInputChange}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 bg-gray-50/50 backdrop-blur-sm"
+                  placeholder="أدخل كلمة المرور الحالية"
+                />
+              </div>
+
+              {/* New Password */}
+              <div>
+                <label htmlFor="newPassword" className="block text-sm font-semibold text-gray-700 mb-2">
+                  كلمة المرور الجديدة *
+                </label>
+                <input
+                  id="newPassword"
+                  name="newPassword"
+                  type="password"
+                  value={passwordData.newPassword}
+                  onChange={handlePasswordInputChange}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 bg-gray-50/50 backdrop-blur-sm"
+                  placeholder="أدخل كلمة المرور الجديدة (6 أحرف على الأقل)"
+                />
+              </div>
+
+              {/* Confirm New Password */}
+              <div>
+                <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-2">
+                  تأكيد كلمة المرور الجديدة *
+                </label>
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  value={passwordData.confirmPassword}
+                  onChange={handlePasswordInputChange}
+                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 bg-gray-50/50 backdrop-blur-sm"
+                  placeholder="أعد إدخال كلمة المرور الجديدة"
+                />
+              </div>
+
+              {/* Password Notification URL */}
+              <div>
+                <label htmlFor="passwordNotificationUrl" className="block text-sm font-semibold text-gray-700 mb-2">
+                  رابط إشعارات كلمة المرور (اختياري)
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M12.586 4.586a2 2 0 112.828 2.828l-3 3a2 2 0 01-2.828 0 1 1 0 00-1.414 1.414 4 4 0 005.656 0l3-3a4 4 0 00-5.656-5.656l-1.5 1.5a1 1 0 101.414 1.414l1.5-1.5zm-5 5a2 2 0 012.828 0 1 1 0 101.414-1.414 4 4 0 00-5.656 0l-3 3a4 4 0 105.656 5.656l1.5-1.5a1 1 0 10-1.414-1.414l-1.5 1.5a2 2 0 11-2.828-2.828l3-3z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <input
+                    id="passwordNotificationUrl"
+                    name="passwordNotificationUrl"
+                    type="url"
+                    value={settings.passwordNotificationUrl}
+                    onChange={handleInputChange}
+                    className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent transition-all duration-200 bg-gray-50/50 backdrop-blur-sm"
+                    placeholder="https://script.google.com/macros/s/your-script-id/exec"
+                  />
+                </div>
+                <p className="text-xs text-gray-500 mt-2">
+                  سيتم إرسال كلمة المرور الجديدة إلى Google Sheets عند التغيير
+                </p>
+              </div>
+
+              {/* Change Password Button */}
+              <button
+                onClick={handlePasswordChange}
+                disabled={passwordLoading || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                className="w-full bg-gradient-to-r from-red-600 to-pink-600 hover:from-red-700 hover:to-pink-700 text-white font-medium py-3 px-4 rounded-xl transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {passwordLoading ? 'جاري تغيير كلمة المرور...' : 'تغيير كلمة المرور'}
+              </button>
+            </div>
+          </div>
 
           {/* Google Sheets Integration Section */}
           <div className="bg-gradient-to-br from-blue-50/50 to-indigo-50/50 rounded-xl p-6 border border-blue-200/30">

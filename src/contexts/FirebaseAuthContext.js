@@ -94,8 +94,9 @@ export function FirebaseAuthProvider({ children }) {
 
   // Legacy login function for backward compatibility
   const login = async (username, password) => {
-    // Admin login
-    if (username === 'admin' && password === 'admin123') {
+    // Admin login - check against stored password
+    const storedAdminPassword = localStorage.getItem('adminPassword') || 'admin123';
+    if (username === 'admin' && password === storedAdminPassword) {
       // Create a mock admin user for backward compatibility
       const adminUser = {
         uid: 'admin',

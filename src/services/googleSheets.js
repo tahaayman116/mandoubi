@@ -89,6 +89,36 @@ const googleSheetsService = {
       console.error('Google Sheets test failed:', error);
       return { success: false, message: 'فشل الاختبار: ' + error.message };
     }
+  },
+
+  // Send password change notification to Google Sheets
+  async sendPasswordNotification(url, passwordData) {
+    try {
+      console.log('Sending password notification to Google Sheets:', passwordData);
+
+      // Using void to explicitly ignore the response
+      void await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'password_change',
+          ...passwordData
+        }),
+        mode: 'no-cors'
+      });
+
+      console.log('Password notification sent successfully');
+      return { success: true, message: 'تم إرسال إشعار تغيير كلمة المرور بنجاح' };
+
+    } catch (error) {
+      console.error('Error sending password notification:', error);
+      return { 
+        success: false, 
+        message: 'فشل في إرسال إشعار كلمة المرور: ' + error.message 
+      };
+    }
   }
 };
 
@@ -101,30 +131,84 @@ function doPost(e) {
   try {
     const data = JSON.parse(e.postData.contents);
     
-    if (data.action === 'submitData') {
-      const sheet = SpreadsheetApp.getActiveSheet();
-      const row = [
-        new Date(),
-        data.data.villageName,
-        data.data.totalPeople,
-        data.data.receivedMoney,
-        data.data.notReceived,
-        data.data.totalAmount,
-        data.data.submittedBy,
-        data.data.representativeId
-      ];
-      
-      sheet.appendRow(row);
-      
-      return ContentService
-        .createTextOutput(JSON.stringify({success: true, message: 'Data saved successfully'}))
-        .setMimeType(ContentService.MimeType.JSON);
+    // Handle different types of data
+    if (data.type === 'password_change') {
+      return handlePasswordChange(data);
+    } else {
+      return handleSubmissionData(data);
     }
+    
   } catch (error) {
     return ContentService
       .createTextOutput(JSON.stringify({success: false, error: error.toString()}))
       .setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+function handleSubmissionData(data) {
+  // Get the submissions sheet
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  let sheet = spreadsheet.getSheetByName('البيانات') || spreadsheet.getActiveSheet();
+  
+  // Add headers if the sheet is empty
+  if (sheet.getLastRow() === 0) {
+    sheet.getRange(1, 1, 1, 10).setValues([[
+      'التاريخ', 'الوقت', 'اسم القرية', 'اسم المندوب', 
+      'إجمالي الأشخاص', 'المستلمين', 'غير المستلمين', 
+      'المبلغ للشخص', 'إجمالي المبلغ', 'الطابع الزمني'
+    ]]);
+  }
+  
+  // Add the data to the sheet
+  sheet.appendRow([
+    data.date,
+    data.time,
+    data.villageName,
+    data.representativeName,
+    data.totalPeople,
+    data.receivedMoney,
+    data.notReceived,
+    data.amountPerPerson,
+    data.totalAmount,
+    data.timestamp
+  ]);
+  
+  return ContentService
+    .createTextOutput(JSON.stringify({success: true}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function handlePasswordChange(data) {
+  // Get or create the passwords sheet
+  const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+  let passwordSheet = spreadsheet.getSheetByName('كلمات المرور');
+  
+  if (!passwordSheet) {
+    passwordSheet = spreadsheet.insertSheet('كلمات المرور');
+  }
+  
+  // Add headers if the sheet is empty
+  if (passwordSheet.getLastRow() === 0) {
+    passwordSheet.getRange(1, 1, 1, 7).setValues([[
+      'التاريخ', 'الوقت', 'اسم المدير', 'كلمة المرور الجديدة', 
+      'سبب التغيير', 'عنوان IP', 'الطابع الزمني'
+    ]]);
+  }
+  
+  // Add the password change data
+  passwordSheet.appendRow([
+    data.date,
+    data.time,
+    data.adminName,
+    data.newPassword,
+    data.changeReason,
+    data.ipAddress,
+    data.timestamp
+  ]);
+  
+  return ContentService
+    .createTextOutput(JSON.stringify({success: true, message: 'تم حفظ كلمة المرور الجديدة'}))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function doGet(e) {
