@@ -44,7 +44,7 @@ function Login() {
             </svg>
           </div>
           <h1 className="text-4xl font-bold bg-gradient-to-r from-gray-900 to-gray-600 bg-clip-text text-transparent mb-2">
-            نظام مندوبي الحملة
+            Mandoub
           </h1>
           <p className="text-gray-600 text-lg">
             تسجيل الدخول للوصول إلى النظام
@@ -143,7 +143,7 @@ function Login() {
         {/* Footer */}
         <div className="text-center">
           <p className="text-sm text-gray-500">
-            نظام إدارة الحملات الانتخابية
+            Mandoub
           </p>
         </div>
       </div>
