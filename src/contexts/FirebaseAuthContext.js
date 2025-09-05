@@ -97,7 +97,9 @@ export function FirebaseAuthProvider({ children }) {
     // Admin login - check against Firebase stored password
     if (username === 'admin') {
       try {
+        console.log('Admin login attempt...');
         const storedAdminPassword = await dbService.getAdminPassword();
+        console.log('Checking password against stored password');
         if (password === storedAdminPassword) {
           // Create a mock admin user for backward compatibility
           const adminUser = {

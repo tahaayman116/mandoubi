@@ -241,26 +241,47 @@ export const dbService = {
   // Admin Password Management
   async getAdminPassword() {
     try {
+      console.log('Getting admin password from Firebase...');
       const settings = await this.getAdminSettings();
-      return settings?.adminPassword || 'admin123'; // Default password
+      console.log('Admin settings from Firebase:', settings);
+      const password = settings?.adminPassword || 'admin123';
+      console.log('Retrieved password:', password);
+      return password;
     } catch (error) {
       console.error('Error getting admin password:', error);
-      return 'admin123'; // Fallback to default
+      // Also check localStorage as fallback
+      const localPassword = localStorage.getItem('adminPassword');
+      console.log('Fallback to localStorage password:', localPassword);
+      return localPassword || 'admin123';
     }
   },
 
   async updateAdminPassword(newPassword) {
     try {
+      console.log('Updating admin password in Firebase:', newPassword);
       const currentSettings = await this.getAdminSettings();
+      console.log('Current settings before update:', currentSettings);
+      
       const updatedSettings = {
         ...currentSettings,
         adminPassword: newPassword,
         passwordLastChanged: new Date().toISOString()
       };
       
-      return await this.updateAdminSettings(updatedSettings);
+      console.log('Settings to update:', updatedSettings);
+      const result = await this.updateAdminSettings(updatedSettings);
+      console.log('Update result:', result);
+      
+      // Also save to localStorage as backup
+      localStorage.setItem('adminPassword', newPassword);
+      console.log('Password also saved to localStorage');
+      
+      return result;
     } catch (error) {
       console.error('Error updating admin password:', error);
+      // Save to localStorage as fallback
+      localStorage.setItem('adminPassword', newPassword);
+      console.log('Password saved to localStorage as fallback');
       throw error;
     }
   }

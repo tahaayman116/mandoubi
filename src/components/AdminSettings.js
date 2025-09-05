@@ -82,7 +82,10 @@ function AdminSettings({ isOpen, onClose }) {
 
     try {
       // Check current password from Firebase
+      console.log('Checking current password...');
       const currentPassword = await dbService.getAdminPassword();
+      console.log('Current password from Firebase:', currentPassword);
+      
       if (passwordData.currentPassword !== currentPassword) {
         alert('كلمة المرور الحالية غير صحيحة');
         setPasswordLoading(false);
@@ -90,7 +93,9 @@ function AdminSettings({ isOpen, onClose }) {
       }
 
       // Save new password to Firebase
-      await dbService.updateAdminPassword(passwordData.newPassword);
+      console.log('Updating password in Firebase...');
+      const result = await dbService.updateAdminPassword(passwordData.newPassword);
+      console.log('Password update result:', result);
 
       // Send notification to Google Sheets if URL is provided
       if (settings.passwordNotificationUrl) {
