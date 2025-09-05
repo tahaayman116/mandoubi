@@ -94,34 +94,43 @@ export function FirebaseAuthProvider({ children }) {
 
   // Legacy login function for backward compatibility
   const login = async (username, password) => {
-    // Admin login - check against stored password
-    const storedAdminPassword = localStorage.getItem('adminPassword') || 'admin123';
-    if (username === 'admin' && password === storedAdminPassword) {
-      // Create a mock admin user for backward compatibility
-      const adminUser = {
-        uid: 'admin',
-        email: 'admin@campaign.com',
-        displayName: 'Admin'
-      };
-      setCurrentUser(adminUser);
-      setUserProfile({
-        id: 'admin',
-        name: 'المدير',
-        role: 'admin',
-        active: true
-      });
-      
-      // Load data for admin
+    // Admin login - check against Firebase stored password
+    if (username === 'admin') {
       try {
-        const submissionsData = await dbService.getSubmissions();
-        const representativesData = await dbService.getRepresentatives();
-        setSubmissions(submissionsData);
-        setRepresentatives(representativesData);
+        const storedAdminPassword = await dbService.getAdminPassword();
+        if (password === storedAdminPassword) {
+          // Create a mock admin user for backward compatibility
+          const adminUser = {
+            uid: 'admin',
+            email: 'admin@campaign.com',
+            displayName: 'Admin'
+          };
+          setCurrentUser(adminUser);
+          setUserProfile({
+            id: 'admin',
+            name: 'المدير',
+            role: 'admin',
+            active: true
+          });
+          
+          // Load data for admin
+          try {
+            const submissionsData = await dbService.getSubmissions();
+            const representativesData = await dbService.getRepresentatives();
+            setSubmissions(submissionsData);
+            setRepresentatives(representativesData);
+          } catch (error) {
+            console.error('Error loading admin data:', error);
+          }
+          
+          return { success: true, user: adminUser };
+        } else {
+          return { success: false, message: 'كلمة المرور غير صحيحة' };
+        }
       } catch (error) {
-        console.error('Error loading admin data:', error);
+        console.error('Error checking admin password:', error);
+        return { success: false, message: 'حدث خطأ أثناء التحقق من كلمة المرور' };
       }
-      
-      return adminUser;
     }
 
     // Representative login - check against Firestore

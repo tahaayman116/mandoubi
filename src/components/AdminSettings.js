@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useFirebaseAuth } from '../contexts/FirebaseAuthContext';
+import { dbService } from '../services/firebaseService';
 
 function AdminSettings({ isOpen, onClose }) {
   const { userProfile } = useFirebaseAuth();
@@ -18,13 +19,32 @@ function AdminSettings({ isOpen, onClose }) {
   const [passwordLoading, setPasswordLoading] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
-  // Load settings from localStorage on component mount
+  // Load settings from Firebase on component mount
   useEffect(() => {
-    const savedSettings = localStorage.getItem('adminSettings');
-    if (savedSettings) {
-      setSettings(JSON.parse(savedSettings));
+    const loadSettings = async () => {
+      try {
+        const adminSettings = await dbService.getAdminSettings();
+        if (adminSettings) {
+          setSettings({
+            googleSheetsUrl: adminSettings.googleSheetsUrl || '',
+            enableGoogleSheets: adminSettings.enableGoogleSheets || false,
+            passwordNotificationUrl: adminSettings.passwordNotificationUrl || ''
+          });
+        }
+      } catch (error) {
+        console.error('Error loading admin settings:', error);
+        // Fallback to localStorage for backward compatibility
+        const savedSettings = localStorage.getItem('adminSettings');
+        if (savedSettings) {
+          setSettings(JSON.parse(savedSettings));
+        }
+      }
+    };
+
+    if (isOpen) {
+      loadSettings();
     }
-  }, []);
+  }, [isOpen]);
 
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -58,18 +78,19 @@ function AdminSettings({ isOpen, onClose }) {
       return;
     }
 
-    // Check current password
-    const savedPassword = localStorage.getItem('adminPassword') || 'admin123';
-    if (passwordData.currentPassword !== savedPassword) {
-      alert('كلمة المرور الحالية غير صحيحة');
-      return;
-    }
-
     setPasswordLoading(true);
 
     try {
-      // Save new password
-      localStorage.setItem('adminPassword', passwordData.newPassword);
+      // Check current password from Firebase
+      const currentPassword = await dbService.getAdminPassword();
+      if (passwordData.currentPassword !== currentPassword) {
+        alert('كلمة المرور الحالية غير صحيحة');
+        setPasswordLoading(false);
+        return;
+      }
+
+      // Save new password to Firebase
+      await dbService.updateAdminPassword(passwordData.newPassword);
 
       // Send notification to Google Sheets if URL is provided
       if (settings.passwordNotificationUrl) {
@@ -129,7 +150,10 @@ function AdminSettings({ isOpen, onClose }) {
     setSuccess(false);
 
     try {
-      // Save settings to localStorage
+      // Save settings to Firebase
+      await dbService.updateAdminSettings(settings);
+      
+      // Also save to localStorage for backward compatibility
       localStorage.setItem('adminSettings', JSON.stringify(settings));
       
       setSuccess(true);

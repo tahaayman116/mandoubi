@@ -21,6 +21,7 @@ import { auth, db } from '../firebase/config';
 // Collections
 const SUBMISSIONS_COLLECTION = 'submissions';
 const REPRESENTATIVES_COLLECTION = 'representatives';
+const ADMIN_SETTINGS_COLLECTION = 'adminSettings';
 
 // Authentication Services
 export const authService = {
@@ -191,6 +192,75 @@ export const dbService = {
       return null;
     } catch (error) {
       console.error('Error getting representative by UID:', error);
+      throw error;
+    }
+  },
+
+  // Admin Settings
+  async getAdminSettings() {
+    try {
+      const querySnapshot = await getDocs(collection(db, ADMIN_SETTINGS_COLLECTION));
+      if (!querySnapshot.empty) {
+        const doc = querySnapshot.docs[0];
+        return { id: doc.id, ...doc.data() };
+      }
+      return null;
+    } catch (error) {
+      console.error('Error getting admin settings:', error);
+      throw error;
+    }
+  },
+
+  async updateAdminSettings(settings) {
+    try {
+      const querySnapshot = await getDocs(collection(db, ADMIN_SETTINGS_COLLECTION));
+      
+      if (!querySnapshot.empty) {
+        // Update existing settings
+        const docRef = doc(db, ADMIN_SETTINGS_COLLECTION, querySnapshot.docs[0].id);
+        await updateDoc(docRef, {
+          ...settings,
+          updatedAt: new Date().toISOString()
+        });
+        return { id: querySnapshot.docs[0].id, ...settings };
+      } else {
+        // Create new settings document
+        const docRef = await addDoc(collection(db, ADMIN_SETTINGS_COLLECTION), {
+          ...settings,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+        return { id: docRef.id, ...settings };
+      }
+    } catch (error) {
+      console.error('Error updating admin settings:', error);
+      throw error;
+    }
+  },
+
+  // Admin Password Management
+  async getAdminPassword() {
+    try {
+      const settings = await this.getAdminSettings();
+      return settings?.adminPassword || 'admin123'; // Default password
+    } catch (error) {
+      console.error('Error getting admin password:', error);
+      return 'admin123'; // Fallback to default
+    }
+  },
+
+  async updateAdminPassword(newPassword) {
+    try {
+      const currentSettings = await this.getAdminSettings();
+      const updatedSettings = {
+        ...currentSettings,
+        adminPassword: newPassword,
+        passwordLastChanged: new Date().toISOString()
+      };
+      
+      return await this.updateAdminSettings(updatedSettings);
+    } catch (error) {
+      console.error('Error updating admin password:', error);
       throw error;
     }
   }
