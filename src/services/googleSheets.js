@@ -34,15 +34,31 @@ const googleSheetsService = {
       console.log('Sending to Google Sheets:', sheetsData);
 
       // Send data to Google Apps Script
-      // Using void to explicitly ignore the response
-      void await fetch(settings.googleSheetsUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(sheetsData),
-        mode: 'no-cors' // Required for Google Apps Script
-      });
+      // Try different approaches for better compatibility
+      try {
+        // First try with no-cors mode
+        await fetch(settings.googleSheetsUrl, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'text/plain', // Changed to avoid CORS preflight
+          },
+          body: JSON.stringify(sheetsData),
+          mode: 'no-cors'
+        });
+      } catch (error) {
+        console.log('POST failed, trying GET method:', error);
+        
+        // Alternative method using GET with URL parameters
+        const params = new URLSearchParams();
+        Object.keys(sheetsData).forEach(key => {
+          params.append(key, sheetsData[key]);
+        });
+        
+        await fetch(`${settings.googleSheetsUrl}?${params.toString()}`, {
+          method: 'GET',
+          mode: 'no-cors'
+        });
+      }
 
       // Note: With no-cors mode, we can't read the response
       // We'll assume success if no error is thrown
@@ -129,7 +145,24 @@ Google Apps Script Code (to be deployed as a web app):
 
 function doPost(e) {
   try {
-    const data = JSON.parse(e.postData.contents);
+    let data;
+    
+    // Handle different data formats from different sources
+    if (e.postData.contents) {
+      // Standard JSON data
+      data = JSON.parse(e.postData.contents);
+    } else if (e.parameter.data) {
+      // Form data format
+      data = JSON.parse(e.parameter.data);
+    } else if (e.parameters && e.parameters.data) {
+      // Alternative form data format
+      data = JSON.parse(e.parameters.data[0]);
+    } else {
+      // Try to parse parameters directly
+      data = e.parameter;
+    }
+    
+    console.log('Received data:', data);
     
     // Handle different types of data
     if (data.type === 'password_change') {
@@ -139,6 +172,7 @@ function doPost(e) {
     }
     
   } catch (error) {
+    console.error('Error in doPost:', error);
     return ContentService
       .createTextOutput(JSON.stringify({success: false, error: error.toString()}))
       .setMimeType(ContentService.MimeType.JSON);
@@ -208,23 +242,39 @@ function handlePasswordChange(data) {
   
   return ContentService
     .createTextOutput(JSON.stringify({success: true, message: 'تم حفظ كلمة المرور الجديدة'}))
-    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function doGet(e) {
-  try {
-    if (e.parameter.action === 'getData') {
-      const sheet = SpreadsheetApp.getActiveSheet();
-      const data = sheet.getDataRange().getValues();
-      
-      return ContentService
-        .createTextOutput(JSON.stringify({success: true, data: data}))
-        .setMimeType(ContentService.MimeType.JSON);
-    }
-  } catch (error) {
+try {
+  // Handle data submission via GET (for Netlify compatibility)
+  if (e.parameter.villageName) {
+    return handleSubmissionData(e.parameter);
+  }
+  
+  // Handle password change via GET
+  if (e.parameter.type === 'password_change') {
+    return handlePasswordChange(e.parameter);
+  }
+  
+  // Handle data retrieval
+  if (e.parameter.action === 'getData') {
+    const sheet = SpreadsheetApp.getActiveSheet();
+    const data = sheet.getDataRange().getValues();
+    
     return ContentService
-      .createTextOutput(JSON.stringify({success: false, error: error.toString()}))
+      .createTextOutput(JSON.stringify({success: true, data: data}))
       .setMimeType(ContentService.MimeType.JSON);
   }
+  
+  return ContentService
+    .createTextOutput(JSON.stringify({success: false, message: 'Invalid request'}))
+    .setMimeType(ContentService.MimeType.JSON);
+    
+} catch (error) {
+  console.error('Error in doGet:', error);
+  return ContentService
+    .createTextOutput(JSON.stringify({success: false, error: error.toString()}))
+    .setMimeType(ContentService.MimeType.JSON);
+}
 }
 */
