@@ -13,7 +13,7 @@ const formatArabicNumber = (num) => {
 };
 
 function AdminDashboard() {
-  const { representatives, addRepresentative, updateRepresentative, deleteRepresentative, submissions } = useFirebaseAuth();
+  const { representatives, addRepresentative, updateRepresentative, deleteRepresentative, submissions, deleteSubmission } = useFirebaseAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [showAddForm, setShowAddForm] = useState(false);
   const [newRep, setNewRep] = useState({ username: '', password: '', name: '' });
@@ -32,6 +32,18 @@ function AdminDashboard() {
   const toggleRepresentativeStatus = (id) => {
     const rep = representatives.find(r => r.id === id);
     updateRepresentative(id, { active: !rep.active });
+  };
+
+  const handleDeleteSubmission = async (submissionId, villageName) => {
+    if (window.confirm(`هل أنت متأكد من حذف بيانات قرية "${villageName}"؟\nسيتم حذف البيانات نهائياً من قاعدة البيانات.`)) {
+      try {
+        await deleteSubmission(submissionId);
+        alert('تم حذف البيانات بنجاح');
+      } catch (error) {
+        console.error('Error deleting submission:', error);
+        alert('حدث خطأ أثناء حذف البيانات');
+      }
+    }
   };
 
   const totalStats = useMemo(() => {
@@ -455,6 +467,9 @@ function AdminDashboard() {
                       <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
                         📅 التاريخ
                       </th>
+                      <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
+                        ⚙️ الإجراءات
+                      </th>
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
@@ -477,6 +492,15 @@ function AdminDashboard() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {new Date(submission.submittedAt).toLocaleDateString('ar-EG')}
+                        </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                          <button
+                            onClick={() => handleDeleteSubmission(submission.id, submission.villageName)}
+                            className="bg-red-600 hover:bg-red-700 text-white font-medium py-1 px-3 rounded text-xs transition-colors duration-200 flex items-center gap-1"
+                            title="حذف البيانات"
+                          >
+                            🗑️ حذف
+                          </button>
                         </td>
                       </tr>
                     ))}

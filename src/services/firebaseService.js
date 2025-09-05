@@ -105,6 +105,16 @@ export const dbService = {
     }
   },
 
+  async deleteSubmission(id) {
+    try {
+      await deleteDoc(doc(db, SUBMISSIONS_COLLECTION, id));
+      return id;
+    } catch (error) {
+      console.error('Error deleting submission:', error);
+      throw error;
+    }
+  },
+
   // Real-time submissions listener
   onSubmissionsChange(callback) {
     const q = query(collection(db, SUBMISSIONS_COLLECTION), orderBy('submittedAt', 'desc'));

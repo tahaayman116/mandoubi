@@ -206,6 +206,16 @@ export function FirebaseAuthProvider({ children }) {
     }
   };
 
+  const deleteSubmission = async (id) => {
+    try {
+      await dbService.deleteSubmission(id);
+      return id;
+    } catch (error) {
+      console.error('Error deleting submission:', error);
+      throw error;
+    }
+  };
+
   const value = {
     currentUser,
     userProfile,
@@ -220,7 +230,8 @@ export function FirebaseAuthProvider({ children }) {
     addSubmission,
     addRepresentative,
     updateRepresentative,
-    deleteRepresentative
+    deleteRepresentative,
+    deleteSubmission
   };
 
   return (
