@@ -127,7 +127,7 @@ function AdminDashboard() {
         <div className="flex flex-col md:flex-row md:items-center md:justify-between">
           <div>
             <h1 className="text-3xl font-bold mb-2">🎯 لوحة التحكم الرئيسية</h1>
-            <p className="text-primary-100">مراقبة شاملة لأداء الحملة الانتخابية</p>
+            <p className="text-primary-100">إدارة البيانات والإحصائيات</p>
           </div>
           <div className="mt-4 md:mt-0 text-center">
             <div className="text-3xl font-bold">{formatArabicNumber(totalStats.totalVillages)}</div>
