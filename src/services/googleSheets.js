@@ -1,20 +1,30 @@
+import { dbService } from './firebaseService';
+
 // Google Sheets integration service
 const googleSheetsService = {
   async sendToGoogleSheets(data) {
     try {
-      // Get admin settings from localStorage
-      const adminSettings = localStorage.getItem('adminSettings');
-      
-      if (!adminSettings) {
-        console.log('Google Sheets not configured');
-        return { success: false, message: 'Google Sheets غير مكون' };
+      // Get admin settings from Firebase first, then fallback to localStorage
+      let settings;
+      try {
+        console.log('Getting admin settings from Firebase...');
+        settings = await dbService.getAdminSettings();
+        console.log('Settings from Firebase:', settings);
+      } catch (error) {
+        console.log('Firebase failed, trying localStorage:', error);
+        const savedSettings = localStorage.getItem('adminSettings');
+        if (savedSettings) {
+          settings = JSON.parse(savedSettings);
+          console.log('Settings from localStorage:', settings);
+        }
       }
 
-      const settings = JSON.parse(adminSettings);
-      
+      if (!settings) {
+        return { success: false, message: 'لم يتم العثور على إعدادات Google Sheets' };
+      }
+
       if (!settings.enableGoogleSheets || !settings.googleSheetsUrl) {
-        console.log('Google Sheets integration disabled or URL not set');
-        return { success: false, message: 'تكامل Google Sheets غير مفعل' };
+        return { success: false, message: 'Google Sheets غير مفعل أو الرابط غير موجود' };
       }
 
       // Prepare data for Google Sheets

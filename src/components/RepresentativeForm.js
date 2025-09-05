@@ -64,14 +64,17 @@ function RepresentativeForm() {
       
       // Try to send to Google Sheets (optional)
       try {
+        console.log('Attempting to send data to Google Sheets...');
+        console.log('Submission data:', submissionData);
         const sheetsResult = await googleSheetsService.sendToGoogleSheets(submissionData);
+        console.log('Google Sheets result:', sheetsResult);
         if (sheetsResult.success) {
-          console.log('Data sent to Google Sheets successfully');
+          console.log('✅ Data sent to Google Sheets successfully');
         } else {
-          console.log('Google Sheets integration skipped:', sheetsResult.message);
+          console.log('❌ Google Sheets integration failed:', sheetsResult.message);
         }
       } catch (sheetsError) {
-        console.error('Google Sheets error (non-critical):', sheetsError);
+        console.error('❌ Google Sheets error (non-critical):', sheetsError);
         // Don't fail the entire submission if Google Sheets fails
       }
       
