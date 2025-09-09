@@ -68,3 +68,4 @@ src/
 ├── App.js                    # المكون الرئيسي
 └── index.css                 # الأنماط الأساسية
 ```
+# mandoub-project
