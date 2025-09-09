@@ -38,16 +38,19 @@ function AdminDashboard() {
   const [selectedPerson, setSelectedPerson] = useState(null);
   const [appwriteRepresentatives, setAppwriteRepresentatives] = useState([]);
   const [showPersonDetails, setShowPersonDetails] = useState(false);
+  const [dataLoaded, setDataLoaded] = useState({ submissions: false, representatives: false });
 
   // Lazy load data based on active tab
   useEffect(() => {
-    if (activeTab === 'overview' || activeTab === 'statistics') {
+    if (activeTab === 'reports' && !dataLoaded.submissions) {
       loadSubmissions();
+      setDataLoaded(prevState => ({ ...prevState, submissions: true }));
     }
-    if (activeTab === 'representatives' || activeTab === 'overview') {
+    if (activeTab === 'representatives' && !dataLoaded.representatives) {
       loadRepresentatives();
+      setDataLoaded(prevState => ({ ...prevState, representatives: true }));
     }
-  }, [activeTab]); // Remove function dependencies to prevent infinite loops
+  }, [activeTab, dataLoaded.submissions, dataLoaded.representatives, loadSubmissions, loadRepresentatives]);
 
   const handleAddRepresentative = async (e) => {
     e.preventDefault();

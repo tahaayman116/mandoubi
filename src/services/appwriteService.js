@@ -4,11 +4,11 @@ import { Client, Databases, ID } from 'appwrite';
 const APPWRITE_ENDPOINT = 'https://nyc.cloud.appwrite.io/v1'; // NYC endpoint
 const APPWRITE_PROJECT_ID = '68bcdd830036700d6d5b'; // ضع معرف المشروع هنا
 const APPWRITE_DATABASE_ID = 'mandoub-db'; // Database created manually
-const APPWRITE_API_KEY = '1e073f48d9cf466b68a2d3b633d38f4933ec5592b755c15ad1d93d3528c87df243b2693501cca12175863de5e8dae054e4b617dd52651d3c7b46b430a9935bb84ffb017cc1ec03e31943d71dfebf194c4892d299831351df149bed248921bb88ef7445d5115b626cb6cf603d4d3c02aad2097807cee6b7a5d9e017c387c7873a';
+// const APPWRITE_API_KEY = process.env.REACT_APP_APPWRITE_API_KEY;
 const APPWRITE_SUBMISSIONS_COLLECTION = 'submissions';
 const APPWRITE_REPRESENTATIVES_COLLECTION = 'representatives';
 const APPWRITE_SETTINGS_COLLECTION = 'settings';
-const APPWRITE_FORM_SETTINGS_COLLECTION = 'formSettings';
+// const APPWRITE_FORM_SETTINGS_COLLECTION = 'formSettings';
 
 // Initialize Appwrite client
 const client = new Client()

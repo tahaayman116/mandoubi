@@ -279,23 +279,25 @@ export function FirebaseAuthProvider({ children }) {
     }
   };
 
-  const addSubmissionToAppwrite = async (submissionData) => {
-    try {
-      const newSubmission = {
-        ...submissionData,
-        submittedBy: userProfile?.name || currentUser?.displayName,
-        representativeId: userProfile?.id || currentUser?.uid
-      };
-      
-      // Add to Appwrite only
-      const result = await appwriteService.addSubmission(newSubmission);
-      console.log('📝 Submission added to Appwrite:', result);
-      return result;
-    } catch (error) {
-      console.error('Error adding submission to Appwrite:', error);
-      throw error;
-    }
-  };
+  // Commented out unused function
+  // const addSubmissionToAppwrite = async (submissionData) => {
+  //   try {
+  //     const newSubmission = {
+  //       ...submissionData,
+  //       submittedBy: userProfile?.name || currentUser?.displayName,
+  //       representativeId: userProfile?.id || currentUser?.uid
+  //     };
+  //     
+  //     // Add to Appwrite only
+  //     const result = await appwriteService.addSubmission(newSubmission);
+  //     console.log('📝 Submission added to Appwrite:', result);
+  //     
+  //     return result;
+  //   } catch (error) {
+  //     console.error('Error adding submission to Appwrite:', error);
+  //     throw error;
+  //   }
+  // };
 
   const addRepresentative = async (repData) => {
     try {
@@ -314,20 +316,21 @@ export function FirebaseAuthProvider({ children }) {
     }
   };
 
-  const addRepresentativeToAppwrite = async (repData) => {
-    try {
-      // Add to Appwrite only
-      const result = await appwriteService.addRepresentative(repData);
-      console.log('📝 Representative added to Appwrite:', result);
-      
-      // Send to Google Apps Script automatically
-      await sendToGoogleSheets(repData, 'add_representative');
-      
-      return result;
-    } catch (error) {
-      throw error;
-    }
-  };
+  // Commented out unused function
+  // const addRepresentativeToAppwrite = async (repData) => {
+  //   try {
+  //     // Add to Appwrite only
+  //     const result = await appwriteService.addRepresentative(repData);
+  //     console.log('📝 Representative added to Appwrite:', result);
+  //     
+  //     // Send to Google Apps Script automatically
+  //     await sendToGoogleSheets(repData, 'add_representative');
+  //     
+  //     return result;
+  //   } catch (error) {
+  //     throw error;
+  //   }
+  // };
 
   const updateRepresentative = async (id, updates) => {
     try {
