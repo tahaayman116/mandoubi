@@ -1,24 +1,23 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useFirebaseAuth } from '../contexts/FirebaseAuthContext';
 import googleSheetsService from '../services/googleSheets';
 
 function RepresentativeForm() {
-  const { userProfile, addSubmission, representatives, loadRepresentatives } = useFirebaseAuth();
+  const { userProfile, addSubmission, representatives, loadRepresentatives, submissions, loadSubmissions } = useFirebaseAuth();
   
-  // Load representatives only if not already loaded
+  // Load representatives and submissions for autocomplete - only once
   React.useEffect(() => {
-    const loadReps = async () => {
-      if (!representatives || representatives.length === 0) {
-        try {
-          console.log('Loading representatives for form...');
-          await loadRepresentatives();
-        } catch (error) {
-          console.error('Error loading representatives:', error);
-        }
+    const loadData = async () => {
+      try {
+        await loadRepresentatives();
+        await loadSubmissions();
+      } catch (error) {
+        console.error('Error loading data:', error);
       }
     };
-    loadReps();
-  }, [representatives, loadRepresentatives]);
+    loadData();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Empty dependency array to run only once
   const [formData, setFormData] = useState({
     personName: '',
     totalPeople: '',
@@ -26,34 +25,92 @@ function RepresentativeForm() {
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const dropdownRef = useRef(null);
 
-  // Get unique person names for autocomplete from representatives only
+  // Get unique person names for autocomplete from representatives (مندوبين/مشرفين)
   const existingPersons = useMemo(() => {
     const persons = new Set();
     
-    // Add representatives names from context
+    console.log('Representatives data:', representatives);
+    console.log('Submissions data:', submissions);
+    
+    // Add names from representatives for autocomplete
     if (representatives && representatives.length > 0) {
       representatives.forEach(rep => {
-        if (rep.name) {
-          persons.add(rep.name);
+        console.log('Processing representative:', rep);
+        if (rep.name && rep.name.trim()) {
+          persons.add(rep.name.trim());
+          console.log('Added representative name:', rep.name.trim());
         }
       });
     }
     
-    // Don't load submissions for autocomplete to reduce Firebase reads
-    // Only use representatives data which is already cached
+    // Also add names from previous submissions for additional options
+    if (submissions && submissions.length > 0) {
+      submissions.forEach(submission => {
+        if (submission.personName && submission.personName.trim()) {
+          persons.add(submission.personName.trim());
+        }
+        if (submission.submittedBy && submission.submittedBy.trim() && submission.submittedBy !== 'غير محدد') {
+          persons.add(submission.submittedBy.trim());
+        }
+      });
+    }
     
-    return Array.from(persons).sort();
-  }, [representatives]);
+    const finalPersons = Array.from(persons).sort();
+    console.log('Final persons list:', finalPersons);
+    return finalPersons;
+  }, [representatives, submissions]);
+
+  // Filter persons based on search term
+  const filteredPersons = useMemo(() => {
+    if (!searchTerm.trim()) {
+      return existingPersons;
+    }
+    return existingPersons.filter(person => 
+      person.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  }, [existingPersons, searchTerm]);
 
 
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setShowDropdown(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'personName') {
+      setSearchTerm(value);
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+      setShowDropdown(true);
+    } else {
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
+    }
+  };
+
+  const handlePersonSelect = (personName) => {
     setFormData(prev => ({
       ...prev,
-      [name]: value
+      personName: personName
     }));
+    setSearchTerm(personName);
+    setShowDropdown(false);
   };
 
   const calculateTotal = () => {
@@ -168,7 +225,7 @@ function RepresentativeForm() {
               <label htmlFor="personName" className="block text-sm font-semibold text-gray-700 mb-2">
                 اسم الشخص *
               </label>
-              <div className="relative">
+              <div className="relative" ref={dropdownRef}>
                 <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                   <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" />
@@ -180,16 +237,46 @@ function RepresentativeForm() {
                   type="text"
                   value={formData.personName}
                   onChange={handleInputChange}
-                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50/50 backdrop-blur-sm"
-                  placeholder="أدخل اسم الشخص"
-                  list="persons-datalist"
+                  onFocus={() => setShowDropdown(true)}
+                  className="w-full pl-10 pr-10 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50/50 backdrop-blur-sm"
+                  placeholder="اكتب اسم الشخص"
                   required
                 />
-                <datalist id="persons-datalist">
-                  {existingPersons.map(person => (
-                    <option key={person} value={person} />
-                  ))}
-                </datalist>
+                <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <svg className={`w-5 h-5 text-gray-400 transition-transform ${showDropdown ? 'rotate-180' : ''}`} fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                  </svg>
+                </div>
+                
+                {showDropdown && filteredPersons.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg max-h-60 overflow-auto">
+                    {filteredPersons.map(person => (
+                      <div
+                        key={person}
+                        onClick={() => handlePersonSelect(person)}
+                        className="px-4 py-3 hover:bg-gray-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition-colors"
+                      >
+                        {person}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                
+                {showDropdown && filteredPersons.length === 0 && existingPersons.length > 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg">
+                    <div className="px-4 py-3 text-gray-500 text-center">
+                      لا توجد نتائج مطابقة
+                    </div>
+                  </div>
+                )}
+                
+                {showDropdown && existingPersons.length === 0 && (
+                  <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg">
+                    <div className="px-4 py-3 text-gray-500 text-center">
+                      لا توجد أسماء محفوظة
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
             

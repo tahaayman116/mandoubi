@@ -18,33 +18,39 @@ export function FirebaseAuthProvider({ children }) {
 
   // Lazy loading functions
   const loadSubmissions = async () => {
-    if (!dataLoaded.submissions && currentUser) {
-      try {
-        console.log('📖 Loading submissions data...');
-        const submissionsData = await dbService.getSubmissions();
-        setSubmissions(submissionsData);
-        setDataLoaded(prev => ({ ...prev, submissions: true }));
-        console.log(`✅ Loaded ${submissionsData.length} submissions`);
-      } catch (error) {
-        console.error('Error loading submissions:', error);
-      }
+    if (dataLoaded.submissions) {
+      console.log('Submissions already loaded, returning cached data');
+      return submissions;
     }
-    return submissions;
+    try {
+      console.log('📖 Loading submissions data...');
+      const submissionsData = await dbService.getSubmissions();
+      setSubmissions(submissionsData);
+      setDataLoaded(prev => ({ ...prev, submissions: true }));
+      console.log(`✅ Loaded ${submissionsData.length} submissions`);
+      return submissionsData;
+    } catch (error) {
+      console.error('Error loading submissions:', error);
+      return [];
+    }
   };
 
   const loadRepresentatives = async () => {
-    if (!dataLoaded.representatives && currentUser) {
-      try {
-        console.log('📖 Loading representatives data...');
-        const representativesData = await dbService.getRepresentatives();
-        setRepresentatives(representativesData);
-        setDataLoaded(prev => ({ ...prev, representatives: true }));
-        console.log(`✅ Loaded ${representativesData.length} representatives`);
-      } catch (error) {
-        console.error('Error loading representatives:', error);
-      }
+    if (dataLoaded.representatives) {
+      console.log('Representatives already loaded, returning cached data');
+      return representatives;
     }
-    return representatives;
+    try {
+      console.log('📖 Loading representatives data...');
+      const representativesData = await dbService.getRepresentatives();
+      setRepresentatives(representativesData);
+      setDataLoaded(prev => ({ ...prev, representatives: true }));
+      console.log(`✅ Loaded ${representativesData.length} representatives`);
+      return representativesData;
+    } catch (error) {
+      console.error('Error loading representatives:', error);
+      return [];
+    }
   };
 
   // Helper function to send data to Google Sheets
