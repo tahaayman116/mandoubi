@@ -1,0 +1,175 @@
+{
+  "database": {
+    "databaseId": "mandoub-db",
+    "name": "Mandoub Database"
+  },
+  "collections": [
+    {
+      "collectionId": "submissions",
+      "name": "Submissions",
+      "permissions": ["any"],
+      "documentSecurity": true,
+      "attributes": [
+        {
+          "key": "villageName",
+          "type": "string",
+          "size": 255,
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "representativeName",
+          "type": "string", 
+          "size": 255,
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "totalPeople",
+          "type": "integer",
+          "required": true,
+          "array": false,
+          "min": 0,
+          "max": 999999
+        },
+        {
+          "key": "receivedMoney",
+          "type": "integer",
+          "required": true,
+          "array": false,
+          "min": 0,
+          "max": 999999
+        },
+        {
+          "key": "notReceived",
+          "type": "integer",
+          "required": true,
+          "array": false,
+          "min": 0,
+          "max": 999999
+        },
+        {
+          "key": "amountPerPerson",
+          "type": "integer",
+          "required": true,
+          "array": false,
+          "min": 0,
+          "max": 999999
+        },
+        {
+          "key": "totalAmount",
+          "type": "integer",
+          "required": true,
+          "array": false,
+          "min": 0,
+          "max": 999999999
+        },
+        {
+          "key": "timestamp",
+          "type": "string",
+          "size": 50,
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "date",
+          "type": "string",
+          "size": 50,
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "time",
+          "type": "string",
+          "size": 50,
+          "required": true,
+          "array": false
+        }
+      ]
+    },
+    {
+      "collectionId": "settings",
+      "name": "Settings",
+      "permissions": ["any"],
+      "documentSecurity": true,
+      "attributes": [
+        {
+          "key": "googleSheetsUrl",
+          "type": "string",
+          "size": 500,
+          "required": false,
+          "array": false
+        },
+        {
+          "key": "enableGoogleSheets",
+          "type": "boolean",
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "passwordNotificationUrl",
+          "type": "string",
+          "size": 500,
+          "required": false,
+          "array": false
+        },
+        {
+          "key": "adminPassword",
+          "type": "string",
+          "size": 255,
+          "required": false,
+          "array": false
+        },
+        {
+          "key": "createdAt",
+          "type": "string",
+          "size": 50,
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "updatedAt",
+          "type": "string",
+          "size": 50,
+          "required": true,
+          "array": false
+        }
+      ]
+    },
+    {
+      "collectionId": "representatives",
+      "name": "Representatives",
+      "permissions": ["any"],
+      "documentSecurity": true,
+      "attributes": [
+        {
+          "key": "name",
+          "type": "string",
+          "size": 255,
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "role",
+          "type": "string",
+          "size": 50,
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "active",
+          "type": "boolean",
+          "required": true,
+          "array": false
+        },
+        {
+          "key": "createdAt",
+          "type": "string",
+          "size": 50,
+          "required": true,
+          "array": false
+        }
+      ]
+    }
+  ]
+}

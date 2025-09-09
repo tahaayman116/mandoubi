@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>إعداد Appwrite التلقائي</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            padding: 30px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        
+        button {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            display: block;
+            margin: 20px auto;
+            transition: transform 0.2s;
+        }
+        button:hover {
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        #log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 8px;
+            padding: 15px;
+            height: 400px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            white-space: pre-wrap;
+        }
+        
+        .progress {
+            width: 100%;
+            height: 20px;
+            background: #e9ecef;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+        .progress-bar {
+            height: 100%;
+            background: linear-gradient(45deg, #28a745, #20c997);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🚀 إعداد Appwrite التلقائي</h1>
+        
+        <div class="status info">
+            <strong>معرف المشروع:</strong> 68bcdd830036700d6d5b<br>
+            <strong>نقطة النهاية:</strong> https://nyc.cloud.appwrite.io/v1
+        </div>
+        
+        <div class="progress">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        
+        <button id="setupBtn" onclick="startSetup()">بدء الإعداد التلقائي</button>
+        
+        <div id="log"></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/appwrite@15.0.0/dist/iife/sdk.js"></script>
+    <script>
+        const APPWRITE_ENDPOINT = 'https://nyc.cloud.appwrite.io/v1';
+        const APPWRITE_PROJECT_ID = '68bcdd830036700d6d5b';
+        const APPWRITE_API_KEY = 'standard_e1ef3d07ab6944523d973e1a2ad5e123aed130f6aae68f32cf65461ece8ce8d4d7936263d5c6da3e3c8c142866cccacbd4029be0fe74a8ba3fa02b4eea246b0b24d05df406d58a31804d6b0196831b753ec3f7d6a802c32f4e36cea7b0ea9ed30f37b6f7fdf74cc91e528fc06751b20b5462f3614ea7260893a45ed97f27efe2';
+
+        // Initialize elements
+        let logElement;
+        let progressBar;
+        let setupBtn;
+        let client;
+        let databases;
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            logElement = document.getElementById('log');
+            progressBar = document.getElementById('progressBar');
+            setupBtn = document.getElementById('setupBtn');
+        });
+
+        // Helper function for API calls
+        async function appwriteAPI(endpoint, method = 'GET', data = null) {
+            const url = `${APPWRITE_ENDPOINT}${endpoint}`;
+            const options = {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Appwrite-Project': APPWRITE_PROJECT_ID,
+                    'X-Appwrite-Key': APPWRITE_API_KEY
+                }
+            };
+
+            if (data) {
+                options.body = JSON.stringify(data);
+            }
+
+            const response = await fetch(url, options);
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(`API Error: ${result.message || response.statusText}`);
+            }
+            
+            return result;
+        }
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString('ar-EG');
+            const logMessage = `[${timestamp}] ${message}\n`;
+            logElement.textContent += logMessage;
+            logElement.scrollTop = logElement.scrollHeight;
+            
+            console.log(message);
+        }
+
+        function updateProgress(percent) {
+            progressBar.style.width = percent + '%';
+        }
+
+        async function startSetup() {
+            if (!logElement || !progressBar || !setupBtn) {
+                alert('خطأ: لم يتم تحميل العناصر بعد. يرجى إعادة تحميل الصفحة.');
+                return;
+            }
+            
+            setupBtn.disabled = true;
+            setupBtn.textContent = 'جاري الإعداد...';
+            logElement.textContent = '';
+            updateProgress(0);
+
+            try {
+                log('🚀 بدء إعداد Appwrite تلقائياً...');
+                updateProgress(10);
+
+                // 1. Create Database using API
+                try {
+                    log('📊 إنشاء قاعدة البيانات...');
+                    await appwriteAPI('/databases', 'POST', {
+                        databaseId: 'mandoub-db',
+                        name: 'Mandoub Database'
+                    });
+                    log('✅ تم إنشاء قاعدة البيانات');
+                } catch (error) {
+                    if (error.message.includes('already exists') || error.message.includes('409')) {
+                        log('ℹ️ قاعدة البيانات موجودة بالفعل');
+                    } else {
+                        throw error;
+                    }
+                }
+                updateProgress(20);
+
+                // 2. Create Collections
+                const collections = [
+                    {
+                        collectionId: 'submissions',
+                        name: 'Submissions',
+                        attributes: [
+                            { key: 'villageName', type: 'string', size: 255, required: true },
+                            { key: 'representativeName', type: 'string', size: 255, required: true },
+                            { key: 'totalPeople', type: 'integer', required: true },
+                            { key: 'receivedMoney', type: 'integer', required: true },
+                            { key: 'notReceived', type: 'integer', required: true },
+                            { key: 'amountPerPerson', type: 'integer', required: true },
+                            { key: 'totalAmount', type: 'integer', required: true },
+                            { key: 'submittedBy', type: 'string', size: 255, required: false },
+                            { key: 'representativeId', type: 'string', size: 255, required: false },
+                            { key: 'timestamp', type: 'string', size: 255, required: false },
+                            { key: 'createdAt', type: 'string', size: 255, required: false }
+                        ]
+                    },
+                    {
+                        collectionId: 'representatives',
+                        name: 'Representatives',
+                        attributes: [
+                            { key: 'name', type: 'string', size: 255, required: true },
+                            { key: 'role', type: 'string', size: 100, required: true },
+                            { key: 'username', type: 'string', size: 100, required: false },
+                            { key: 'password', type: 'string', size: 255, required: false },
+                            { key: 'email', type: 'string', size: 255, required: false },
+                            { key: 'active', type: 'boolean', required: true },
+                            { key: 'createdAt', type: 'string', size: 255, required: false },
+                            { key: 'updatedAt', type: 'string', size: 255, required: false }
+                        ]
+                    },
+                    {
+                        collectionId: 'settings',
+                        name: 'Settings',
+                        attributes: [
+                            { key: 'googleSheetsUrl', type: 'string', size: 500, required: false },
+                            { key: 'enableGoogleSheets', type: 'boolean', required: false },
+                            { key: 'passwordNotificationUrl', type: 'string', size: 500, required: false },
+                            { key: 'adminPassword', type: 'string', size: 255, required: false },
+                            { key: 'passwordLastChanged', type: 'string', size: 255, required: false },
+                            { key: 'createdAt', type: 'string', size: 255, required: false },
+                            { key: 'updatedAt', type: 'string', size: 255, required: false }
+                        ]
+                    },
+                    {
+                        collectionId: 'formSettings',
+                        name: 'Form Settings',
+                        attributes: [
+                            { key: 'username', type: 'string', size: 100, required: true },
+                            { key: 'password', type: 'string', size: 255, required: true },
+                            { key: 'googleSheetsUrl', type: 'string', size: 500, required: false },
+                            { key: 'updatedAt', type: 'string', size: 255, required: false },
+                            { key: 'updatedBy', type: 'string', size: 255, required: false }
+                        ]
+                    }
+                ];
+
+                let collectionProgress = 20;
+                const progressPerCollection = 70 / collections.length;
+
+                for (const collection of collections) {
+                    try {
+                        log(`📁 إنشاء collection: ${collection.name}...`);
+                        
+                        // Create collection with permissions
+                        await databases.createCollection(
+                            'mandoub-db',
+                            collection.collectionId,
+                            collection.name
+                        );
+                        
+                        log(`✅ تم إنشاء ${collection.name}`);
+
+                        // Add attributes
+                        const attributeProgress = progressPerCollection / collection.attributes.length;
+                        for (const attr of collection.attributes) {
+                            try {
+                                log(`  📝 إضافة ${attr.key}...`);
+                                
+                                let endpoint = `/databases/mandoub-db/collections/${collection.collectionId}/attributes/`;
+                                let payload = {
+                                    key: attr.key,
+                                    required: attr.required
+                                };
+
+                                if (attr.type === 'string') {
+                                    endpoint += 'string';
+                                    payload.size = attr.size;
+                                } else if (attr.type === 'integer') {
+                                    endpoint += 'integer';
+                                    payload.min = 0;
+                                    payload.max = 999999999;
+                                } else if (attr.type === 'boolean') {
+                                    endpoint += 'boolean';
+                                    payload.default = attr.required ? true : false;
+                                }
+
+                                await appwriteAPI(endpoint, 'POST', payload);
+                                
+                                log(`    ✅ تم إضافة ${attr.key}`);
+                                collectionProgress += attributeProgress / collection.attributes.length;
+                                updateProgress(collectionProgress);
+                                
+                                // Wait between attributes
+                                await new Promise(resolve => setTimeout(resolve, 500));
+                                
+                            } catch (attrError) {
+                                if (attrError.code === 409) {
+                                    log(`    ℹ️ ${attr.key} موجود بالفعل`);
+                                } else {
+                                    log(`    ❌ خطأ في ${attr.key}: ${attrError.message}`);
+                                }
+                            }
+                        }
+
+                    } catch (collError) {
+                        if (collError.code === 409) {
+                            log(`ℹ️ ${collection.name} موجود بالفعل`);
+                        } else {
+                            log(`❌ خطأ في ${collection.name}: ${collError.message}`);
+                        }
+                    }
+                    
+                    collectionProgress += progressPerCollection;
+                    updateProgress(collectionProgress);
+                }
+
+                updateProgress(100);
+                log('🎉 تم إعداد Appwrite بنجاح!');
+                log('📋 تم إنشاء:');
+                log('  ✅ قاعدة البيانات: mandoub-db');
+                log('  ✅ مجموعة الإرسالات: submissions');
+                log('  ✅ مجموعة المندوبين: representatives');
+                log('  ✅ مجموعة الإعدادات: settings');
+                log('  ✅ مجموعة إعدادات الفورم: formSettings');
+                log('');
+                log('🚀 يمكنك الآن استخدام النظام المزدوج (Firebase + Appwrite)');
+                
+                setupBtn.textContent = 'تم الإعداد بنجاح ✅';
+                setupBtn.style.background = 'linear-gradient(45deg, #28a745, #20c997)';
+
+            } catch (error) {
+                log(`❌ خطأ في الإعداد: ${error.message}`);
+                setupBtn.disabled = false;
+                setupBtn.textContent = 'إعادة المحاولة';
+                setupBtn.style.background = 'linear-gradient(45deg, #dc3545, #c82333)';
+            }
+        }
+    </script>
+</body>
+</html>

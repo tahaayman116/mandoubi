@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تنظيف البيانات المكررة - Appwrite</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .cleanup-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .success { background-color: #d4edda; border-color: #c3e6cb; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; }
+        .info { background-color: #d1ecf1; border-color: #bee5eb; }
+        .warning { background-color: #fff3cd; border-color: #ffeaa7; }
+        button {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #c82333; }
+        button.safe { background: #28a745; }
+        button.safe:hover { background: #218838; }
+        #results { margin-top: 20px; }
+        .log { margin: 5px 0; padding: 5px; background: #f8f9fa; border-radius: 3px; }
+        .collection-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .stat-card {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .count { font-size: 24px; font-weight: bold; color: #007bff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧹 تنظيف البيانات المكررة في Appwrite</h1>
+        
+        <div class="cleanup-section warning">
+            <h3>⚠️ تحذير مهم:</h3>
+            <p>هذه العملية ستحذف البيانات المكررة نهائياً من Appwrite. تأكد من أن لديك نسخة احتياطية!</p>
+        </div>
+
+        <div class="cleanup-section info">
+            <h3>📊 إحصائيات المجموعات الحالية:</h3>
+            <div class="collection-stats" id="stats">
+                <div class="stat-card">
+                    <div>المندوبين</div>
+                    <div class="count" id="reps-count">-</div>
+                </div>
+                <div class="stat-card">
+                    <div>البيانات المرسلة</div>
+                    <div class="count" id="subs-count">-</div>
+                </div>
+                <div class="stat-card">
+                    <div>الإعدادات</div>
+                    <div class="count" id="settings-count">-</div>
+                </div>
+                <div class="stat-card">
+                    <div>إعدادات النموذج</div>
+                    <div class="count" id="form-count">-</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="cleanup-section">
+            <button class="safe" onclick="loadStats()">🔄 تحديث الإحصائيات</button>
+            <button onclick="findDuplicates()">🔍 البحث عن المكررات</button>
+            <button onclick="cleanupDuplicates()">🧹 حذف المكررات</button>
+            <button onclick="clearResults()">🗑️ مسح النتائج</button>
+        </div>
+
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const APPWRITE_ENDPOINT = 'https://nyc.cloud.appwrite.io/v1';
+        const APPWRITE_PROJECT_ID = '68bcdd830036700d6d5b';
+        const APPWRITE_DATABASE_ID = 'mandoub-db';
+        const APPWRITE_API_KEY = '1e073f48d9cf466b68a2d3b633d38f4933ec5592b755c15ad1d93d3528c87df243b2693501cca12175863de5e8dae054e4b617dd52651d3c7b46b430a9935bb84ffb017cc1ec03e31943d71dfebf194c4892d299831351df149bed248921bb88ef7445d5115b626cb6cf603d4d3c02aad2097807cee6b7a5d9e017c387c7873a';
+
+        function log(message, type = 'info') {
+            const results = document.getElementById('results');
+            const div = document.createElement('div');
+            div.className = `log ${type}`;
+            div.innerHTML = `${new Date().toLocaleTimeString()} - ${message}`;
+            results.appendChild(div);
+            results.scrollTop = results.scrollHeight;
+        }
+
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+
+        async function loadStats() {
+            log('📊 تحميل إحصائيات المجموعات...', 'info');
+            
+            const collections = [
+                { id: 'representatives', element: 'reps-count' },
+                { id: 'submissions', element: 'subs-count' },
+                { id: 'settings', element: 'settings-count' },
+                { id: 'formSettings', element: 'form-count' }
+            ];
+
+            for (const collection of collections) {
+                try {
+                    const response = await fetch(`${APPWRITE_ENDPOINT}/databases/${APPWRITE_DATABASE_ID}/collections/${collection.id}/documents`, {
+                        method: 'GET',
+                        headers: {
+                            'X-Appwrite-Project': APPWRITE_PROJECT_ID,
+                            'X-Appwrite-Key': APPWRITE_API_KEY,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (response.ok) {
+                        const data = await response.json();
+                        document.getElementById(collection.element).textContent = data.documents.length;
+                        log(`✅ ${collection.id}: ${data.documents.length} عنصر`, 'success');
+                    } else {
+                        document.getElementById(collection.element).textContent = 'خطأ';
+                        log(`❌ فشل تحميل ${collection.id}`, 'error');
+                    }
+                } catch (error) {
+                    document.getElementById(collection.element).textContent = 'خطأ';
+                    log(`❌ خطأ في ${collection.id}: ${error.message}`, 'error');
+                }
+            }
+        }
+
+        async function findDuplicates() {
+            log('🔍 البحث عن البيانات المكررة...', 'info');
+            
+            const collections = ['representatives', 'submissions', 'settings', 'formSettings'];
+            let totalDuplicates = 0;
+
+            for (const collectionId of collections) {
+                try {
+                    const response = await fetch(`${APPWRITE_ENDPOINT}/databases/${APPWRITE_DATABASE_ID}/collections/${collectionId}/documents`, {
+                        method: 'GET',
+                        headers: {
+                            'X-Appwrite-Project': APPWRITE_PROJECT_ID,
+                            'X-Appwrite-Key': APPWRITE_API_KEY,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    const documents = data.documents;
+                    
+                    // Find duplicates
+                    const duplicates = [];
+                    const seen = new Map();
+                    
+                    documents.forEach(doc => {
+                        let key;
+                        if (collectionId === 'representatives') {
+                            key = `${doc.name}-${doc.role}`;
+                        } else if (collectionId === 'submissions') {
+                            key = `${doc.villageName}-${doc.representativeName}-${doc.totalPeople}`;
+                        } else {
+                            key = doc.username || doc.adminPassword || 'settings';
+                        }
+                        
+                        if (seen.has(key)) {
+                            duplicates.push(doc);
+                        } else {
+                            seen.set(key, doc);
+                        }
+                    });
+
+                    if (duplicates.length > 0) {
+                        log(`🔍 ${collectionId}: وجد ${duplicates.length} عنصر مكرر من أصل ${documents.length}`, 'warning');
+                        totalDuplicates += duplicates.length;
+                    } else {
+                        log(`✅ ${collectionId}: لا توجد مكررات (${documents.length} عنصر)`, 'success');
+                    }
+
+                } catch (error) {
+                    log(`❌ خطأ في فحص ${collectionId}: ${error.message}`, 'error');
+                }
+            }
+
+            if (totalDuplicates > 0) {
+                log(`⚠️ إجمالي البيانات المكررة: ${totalDuplicates} عنصر`, 'warning');
+            } else {
+                log('🎉 لا توجد بيانات مكررة!', 'success');
+            }
+        }
+
+        async function cleanupDuplicates() {
+            if (!confirm('هل أنت متأكد من حذف البيانات المكررة؟ هذا الإجراء لا يمكن التراجع عنه!')) {
+                return;
+            }
+
+            log('🧹 بدء عملية تنظيف البيانات المكررة...', 'info');
+            
+            const collections = ['representatives', 'submissions', 'settings', 'formSettings'];
+            let totalDeleted = 0;
+
+            for (const collectionId of collections) {
+                try {
+                    log(`📋 معالجة مجموعة: ${collectionId}`, 'info');
+                    
+                    const response = await fetch(`${APPWRITE_ENDPOINT}/databases/${APPWRITE_DATABASE_ID}/collections/${collectionId}/documents`, {
+                        method: 'GET',
+                        headers: {
+                            'X-Appwrite-Project': APPWRITE_PROJECT_ID,
+                            'X-Appwrite-Key': APPWRITE_API_KEY,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}`);
+                    }
+
+                    const data = await response.json();
+                    const documents = data.documents;
+                    
+                    // Find duplicates
+                    const duplicates = [];
+                    const seen = new Map();
+                    
+                    documents.forEach(doc => {
+                        let key;
+                        if (collectionId === 'representatives') {
+                            key = `${doc.name}-${doc.role}`;
+                        } else if (collectionId === 'submissions') {
+                            key = `${doc.villageName}-${doc.representativeName}-${doc.totalPeople}`;
+                        } else {
+                            key = doc.username || doc.adminPassword || 'settings';
+                        }
+                        
+                        if (seen.has(key)) {
+                            duplicates.push(doc);
+                        } else {
+                            seen.set(key, doc);
+                        }
+                    });
+
+                    if (duplicates.length === 0) {
+                        log(`✅ ${collectionId}: لا توجد مكررات`, 'success');
+                        continue;
+                    }
+
+                    log(`🗑️ حذف ${duplicates.length} عنصر مكرر من ${collectionId}...`, 'warning');
+
+                    // Delete duplicates
+                    let deletedCount = 0;
+                    for (const duplicate of duplicates) {
+                        try {
+                            const deleteResponse = await fetch(`${APPWRITE_ENDPOINT}/databases/${APPWRITE_DATABASE_ID}/collections/${collectionId}/documents/${duplicate.$id}`, {
+                                method: 'DELETE',
+                                headers: {
+                                    'X-Appwrite-Project': APPWRITE_PROJECT_ID,
+                                    'X-Appwrite-Key': APPWRITE_API_KEY,
+                                    'Content-Type': 'application/json'
+                                }
+                            });
+
+                            if (deleteResponse.ok) {
+                                deletedCount++;
+                            }
+
+                            // Add delay to avoid rate limiting
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                        } catch (error) {
+                            log(`❌ فشل حذف عنصر من ${collectionId}`, 'error');
+                        }
+                    }
+
+                    log(`✅ ${collectionId}: تم حذف ${deletedCount} من ${duplicates.length} عنصر`, 'success');
+                    totalDeleted += deletedCount;
+
+                } catch (error) {
+                    log(`❌ خطأ في معالجة ${collectionId}: ${error.message}`, 'error');
+                }
+            }
+
+            log(`🎉 انتهت عملية التنظيف! تم حذف ${totalDeleted} عنصر مكرر`, 'success');
+            
+            // Refresh stats
+            setTimeout(loadStats, 1000);
+        }
+
+        // Load initial stats
+        loadStats();
+    </script>
+</body>
+</html>
