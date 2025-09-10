@@ -88,14 +88,7 @@ export const dbService = {
         console.log('Updating existing form settings document:', existingSettings.id);
         const result = await this.updateFormSettings(existingSettings.id, settings);
         
-        // Also save to backup database
-        try {
-          const { appwriteService } = await import('./appwriteService');
-          await appwriteService.saveFormSettings(settings);
-          console.log('Form settings synced to backup database');
-        } catch (appwriteError) {
-          console.error('Failed to sync form settings to backup database:', appwriteError);
-        }
+        // Form settings saved to primary database
         
         return result;
       } else {
@@ -110,14 +103,7 @@ export const dbService = {
         
         const result = { id: docRef.id, ...settings };
         
-        // Also save to backup database
-        try {
-          const { appwriteService } = await import('./appwriteService');
-          await appwriteService.saveFormSettings(settings);
-          console.log('Form settings synced to backup database');
-        } catch (appwriteError) {
-          console.error('Failed to sync form settings to backup database:', appwriteError);
-        }
+        // Form settings saved to primary database
         
         return result;
       }

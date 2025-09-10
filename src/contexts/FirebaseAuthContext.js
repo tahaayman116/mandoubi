@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { authService, dbService } from '../services/firebaseService';
-import { appwriteService } from '../services/appwriteService';
 
 const FirebaseAuthContext = createContext();
 
@@ -116,18 +115,7 @@ export function FirebaseAuthProvider({ children }) {
       setLoading(false);
     });
 
-    // Initialize Appwrite separately
-    const initAppwrite = async () => {
-      try {
-        console.log('🔄 Initializing Appwrite...');
-        const result = await appwriteService.init();
-        console.log('Appwrite status:', result);
-      } catch (error) {
-        console.error('Error initializing Appwrite:', error);
-      }
-    };
-    
-    initAppwrite();
+    // Database initialization completed
 
     return unsubscribe;
   }, []);
@@ -295,7 +283,7 @@ export function FirebaseAuthProvider({ children }) {
   //     };
   //     
   //     // Add to Appwrite only
-  //     const result = await appwriteService.addSubmission(newSubmission);
+  //     const result = await dbService.addSubmission(newSubmission);
   //     console.log('📝 Submission added to Appwrite:', result);
   //     
   //     return result;
@@ -326,7 +314,7 @@ export function FirebaseAuthProvider({ children }) {
   // const addRepresentativeToAppwrite = async (repData) => {
   //   try {
   //     // Add to Appwrite only
-  //     const result = await appwriteService.addRepresentative(repData);
+  //     const result = await dbService.addRepresentative(repData);
   //     console.log('📝 Representative added to Appwrite:', result);
   //     
   //     // Send to Google Apps Script automatically
@@ -357,15 +345,6 @@ export function FirebaseAuthProvider({ children }) {
     }
   };
 
-  const deleteRepresentativeFromAppwrite = async (id) => {
-    try {
-      // Delete from Appwrite only
-      await appwriteService.deleteRepresentative(id);
-      return id;
-    } catch (error) {
-      throw error;
-    }
-  };
 
   const clearAllRepresentatives = async () => {
     try {
@@ -378,15 +357,6 @@ export function FirebaseAuthProvider({ children }) {
     }
   };
 
-  const clearAllRepresentativesFromAppwrite = async () => {
-    try {
-      // Clear from Appwrite only
-      const count = await appwriteService.clearAllRepresentatives();
-      return count;
-    } catch (error) {
-      throw error;
-    }
-  };
 
   // Get data from Appwrite
   const getRepresentatives = async () => {
@@ -401,23 +371,7 @@ export function FirebaseAuthProvider({ children }) {
     }
   };
 
-  const getRepresentativesFromAppwrite = async () => {
-    try {
-      const result = await appwriteService.getRepresentatives();
-      return result;
-    } catch (error) {
-      throw error;
-    }
-  };
 
-  const getSubmissionsFromAppwrite = async () => {
-    try {
-      const result = await appwriteService.getSubmissions();
-      return result;
-    } catch (error) {
-      throw error;
-    }
-  };
 
   const deleteSubmission = async (id) => {
     try {
@@ -483,11 +437,7 @@ export function FirebaseAuthProvider({ children }) {
     updateRepresentative,
     deleteRepresentative,
     clearAllRepresentatives,
-    deleteRepresentativeFromAppwrite,
-    clearAllRepresentativesFromAppwrite,
     getRepresentatives,
-    getRepresentativesFromAppwrite,
-    getSubmissionsFromAppwrite,
     deletePersonSubmissions,
     clearAllSubmissions
   };

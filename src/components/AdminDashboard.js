@@ -18,9 +18,6 @@ function AdminDashboard() {
     addRepresentative, 
     deleteRepresentative, 
     clearAllRepresentatives,
-    deleteRepresentativeFromAppwrite,
-    clearAllRepresentativesFromAppwrite,
-    getRepresentativesFromAppwrite,
     submissions,
     deletePersonSubmissions,
     clearAllSubmissions,
@@ -36,7 +33,6 @@ function AdminDashboard() {
   const [roleFilter, setRoleFilter] = useState('all');
   const [sortBy, setSortBy] = useState('name');
   const [selectedPerson, setSelectedPerson] = useState(null);
-  const [appwriteRepresentatives, setAppwriteRepresentatives] = useState([]);
   const [showPersonDetails, setShowPersonDetails] = useState(false);
   const [dataLoaded, setDataLoaded] = useState({ submissions: false, representatives: false });
 
@@ -65,7 +61,6 @@ function AdminDashboard() {
           console.error('❌ Failed to add representative');
         }
         
-        await loadAppwriteRepresentatives(); // Refresh Appwrite data
         setNewRep({ name: '', role: 'مندوب', location: '' });
         setShowAddForm(false);
       } catch (error) {
@@ -135,7 +130,6 @@ function AdminDashboard() {
         }
       }
       
-      await loadAppwriteRepresentatives(); // Refresh Appwrite data
       
       alert(`تم الانتهاء من الإضافة:\n✅ نجح: ${successCount}\n❌ فشل: ${failCount}`);
       
@@ -156,25 +150,17 @@ function AdminDashboard() {
         // Clear from both databases simultaneously
         const results = await Promise.allSettled([
           clearAllRepresentatives(),
-          clearAllRepresentativesFromAppwrite()
         ]);
         
         const firebaseCount = results[0].status === 'fulfilled' ? results[0].value : 0;
-        const appwriteCount = results[1].status === 'fulfilled' ? results[1].value : 0;
         const firebaseSuccess = results[0].status === 'fulfilled';
-        const appwriteSuccess = results[1].status === 'fulfilled';
         
-        if (firebaseSuccess && appwriteSuccess) {
-          alert(`تم مسح ${firebaseCount} عنصر من Firebase و ${appwriteCount} عنصر من Appwrite بنجاح`);
-        } else if (firebaseSuccess) {
-          alert(`تم مسح ${firebaseCount} عنصر من Firebase فقط - فشل Appwrite`);
-        } else if (appwriteSuccess) {
-          alert(`تم مسح ${appwriteCount} عنصر من Appwrite فقط - فشل Firebase`);
+        if (firebaseSuccess) {
+          alert(`تم مسح ${firebaseCount} عنصر من Firebase بنجاح`);
         } else {
-          alert('فشل في مسح البيانات من القاعدتين');
+          alert(`فشل في مسح البيانات من Firebase`);
         }
         
-        await loadAppwriteRepresentatives(); // Refresh Appwrite data
       } catch (error) {
         console.error('Error clearing all representatives:', error);
         alert('حدث خطأ أثناء مسح البيانات');
@@ -208,15 +194,6 @@ function AdminDashboard() {
     }
   };
 
-  const loadAppwriteRepresentatives = React.useCallback(async () => {
-    try {
-      const data = await getRepresentativesFromAppwrite();
-      setAppwriteRepresentatives(data || []);
-    } catch (error) {
-      console.error('Error loading Appwrite representatives:', error);
-      setAppwriteRepresentatives([]);
-    }
-  }, [getRepresentativesFromAppwrite]);
 
   const handleDeleteRepresentative = async (rep) => {
     if (window.confirm(`هل أنت متأكد من حذف "${rep.name}"؟`)) {
@@ -224,23 +201,16 @@ function AdminDashboard() {
         // Delete from both databases simultaneously
         const results = await Promise.allSettled([
           deleteRepresentative(rep.id),
-          findAndDeleteFromAppwrite(rep.name, rep.role)
         ]);
         
         const firebaseSuccess = results[0].status === 'fulfilled';
-        const appwriteSuccess = results[1].status === 'fulfilled';
         
-        if (firebaseSuccess && appwriteSuccess) {
+        if (firebaseSuccess) {
           alert(`تم حذف "${rep.name}" بنجاح`);
-        } else if (firebaseSuccess) {
-          alert(`تم حذف "${rep.name}" من قاعدة البيانات الأساسية`);
-        } else if (appwriteSuccess) {
-          alert(`تم حذف "${rep.name}" من قاعدة البيانات الاحتياطية`);
         } else {
           alert(`فشل في حذف "${rep.name}"`);
         }
         
-        await loadAppwriteRepresentatives(); // Refresh Appwrite data
       } catch (error) {
         console.error('Error deleting representative:', error);
         alert('حدث خطأ أثناء حذف المندوب');
@@ -248,20 +218,6 @@ function AdminDashboard() {
     }
   };
 
-  // Helper function to find and delete from Appwrite by name/role
-
-  const findAndDeleteFromAppwrite = async (name, role) => {
-    const appwriteRep = appwriteRepresentatives.find(r => r.name === name && r.role === role);
-    if (appwriteRep) {
-      return await deleteRepresentativeFromAppwrite(appwriteRep.$id || appwriteRep.id);
-    }
-    throw new Error('Representative not found in Appwrite');
-  };
-
-  // Load Appwrite data on component mount
-  React.useEffect(() => {
-    loadAppwriteRepresentatives();
-  }, [loadAppwriteRepresentatives]);
 
 
   const totalStats = useMemo(() => {

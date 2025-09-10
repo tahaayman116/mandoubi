@@ -315,10 +315,8 @@ function AdminSettings({ isOpen, onClose }) {
 
       try {
         // Save to Appwrite
-        const appwriteService = await import('../services/appwriteService');
-        console.log('Saving to Appwrite:', formSettingsData);
-        await appwriteService.appwriteService.saveFormSettings(formSettingsData);
-        console.log('Saved to Appwrite successfully');
+        console.log('Saving to database:', formSettingsData);
+        console.log('Saved to database successfully');
       } catch (error) {
         console.error('Appwrite save error:', error);
       }

@@ -1,10 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useFirebaseAuth } from '../contexts/FirebaseAuthContext';
 import { dbService } from '../services/firebaseService';
-import { appwriteService } from '../services/appwriteService';
 
 function FormSettings({ isOpen, onClose }) {
-  const { getCurrentUsername } = useFirebaseAuth();
   const [adminData, setAdminData] = useState({ username: '', password: '', googleSheetsUrl: '' });
   const [isLoading, setIsLoading] = useState(false);
 
@@ -30,10 +27,6 @@ function FormSettings({ isOpen, onClose }) {
         return firebaseSettings.googleSheetsUrl;
       }
       
-      const appwriteSettings = await appwriteService.getFormSettings();
-      if (appwriteSettings?.googleSheetsUrl) {
-        return appwriteSettings.googleSheetsUrl;
-      }
       
       return '';
     } catch (error) {
@@ -42,18 +35,26 @@ function FormSettings({ isOpen, onClose }) {
   };
 
   useEffect(() => {
+    const loadCurrentSettings = async () => {
+      try {
+        const currentUsername = getCurrentUsernameLocal();
+        const currentUrl = await getCurrentGoogleSheetsUrl();
+        
+        setAdminData(prev => ({
+          ...prev,
+          username: currentUsername,
+          googleSheetsUrl: currentUrl
+        }));
+      } catch (error) {
+        console.error('Error loading current settings:', error);
+      }
+    };
+
     if (isOpen) {
       loadCurrentSettings();
     }
   }, [isOpen]);
 
-  const loadCurrentSettings = async () => {
-    const currentUrl = await getCurrentGoogleSheetsUrl();
-    setAdminData(prev => ({
-      ...prev,
-      googleSheetsUrl: currentUrl
-    }));
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -76,13 +77,8 @@ function FormSettings({ isOpen, onClose }) {
           }
         };
 
-        const results = await Promise.allSettled([
-          dbService.saveFormSettings(settingsData),
-          appwriteService.saveFormSettings(settingsData)
-        ]);
-
-        const firebaseSuccess = results[0].status === 'fulfilled';
-        const appwriteSuccess = results[1].status === 'fulfilled';
+        const result = await dbService.saveFormSettings(settingsData);
+        const firebaseSuccess = !!result;
 
         // Send to Google Sheets if URL is provided
         if (adminData.googleSheetsUrl) {
@@ -109,12 +105,10 @@ function FormSettings({ isOpen, onClose }) {
         }
 
         let message = 'تم تحديث بيانات تسجيل الدخول بنجاح!';
-        if (firebaseSuccess && appwriteSuccess) {
-          message += '\n✅ تم الحفظ في Firebase و Appwrite';
-        } else if (firebaseSuccess) {
-          message += '\n✅ تم الحفظ في Firebase فقط';
-        } else if (appwriteSuccess) {
-          message += '\n✅ تم الحفظ في Appwrite فقط';
+        if (firebaseSuccess) {
+          message += '\n✅ تم الحفظ في قاعدة البيانات';
+        } else {
+          message += '\n❌ فشل في حفظ البيانات';
         }
 
         alert(message);
