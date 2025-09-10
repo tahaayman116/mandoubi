@@ -1,7 +1,7 @@
 import { dbService } from './firebaseService';
 import { appwriteService } from './appwriteService';
 
-// Dual database service for Firebase + Appwrite integration
+// Dual database service integration
 export const dualDatabaseService = {
   // Initialize both databases
   async init() {
@@ -11,8 +11,8 @@ export const dualDatabaseService = {
       const firebaseReady = true; // Firebase is already initialized
       const appwriteReady = await appwriteService.init();
       
-      console.log(`Firebase: ${firebaseReady ? '✅' : '❌'}`);
-      console.log(`Appwrite: ${appwriteReady ? '✅' : '❌'}`);
+      console.log(`Primary DB: ${firebaseReady ? '✅' : '❌'}`);
+      console.log(`Backup DB: ${appwriteReady ? '✅' : '❌'}`);
       
       return { firebase: firebaseReady, appwrite: appwriteReady };
     } catch (error) {
@@ -25,23 +25,23 @@ export const dualDatabaseService = {
   async addSubmission(data) {
     const results = { firebase: null, appwrite: null };
     
-    // Add to Firebase (primary)
+    // Add to primary database
     try {
-      console.log('📝 Adding to Firebase...');
+      console.log('📝 Adding to primary database...');
       results.firebase = await dbService.addSubmission(data);
-      console.log('✅ Firebase: Success', results.firebase);
+      console.log('✅ Primary DB: Success', results.firebase);
     } catch (error) {
-      console.error('❌ Firebase: Failed', error);
+      console.error('❌ Primary DB: Failed', error);
       results.firebase = { success: false, error: error.message };
     }
 
-    // Add to Appwrite (backup) - run independently
+    // Add to backup database - run independently
     try {
-      console.log('📝 Adding to Appwrite...');
+      console.log('📝 Adding to backup database...');
       results.appwrite = await appwriteService.addSubmission(data);
-      console.log('✅ Appwrite: Success', results.appwrite);
+      console.log('✅ Backup DB: Success', results.appwrite);
     } catch (error) {
-      console.error('❌ Appwrite: Failed', error);
+      console.error('❌ Backup DB: Failed', error);
       results.appwrite = { success: false, error: error.message };
     }
 
@@ -50,9 +50,9 @@ export const dualDatabaseService = {
     const appwriteSuccess = results.appwrite && results.appwrite.success;
     const success = firebaseSuccess || appwriteSuccess;
     
-    console.log('🔄 Dual Database Results:', { 
-      firebase: firebaseSuccess ? 'SUCCESS' : 'FAILED',
-      appwrite: appwriteSuccess ? 'SUCCESS' : 'FAILED',
+    console.log('🔄 Database Results:', { 
+      primary: firebaseSuccess ? 'SUCCESS' : 'FAILED',
+      backup: appwriteSuccess ? 'SUCCESS' : 'FAILED',
       overall: success ? 'SUCCESS' : 'FAILED'
     });
     
@@ -62,18 +62,18 @@ export const dualDatabaseService = {
   // Get submissions with fallback
   async getSubmissions() {
     try {
-      // Try Firebase first
-      console.log('📖 Reading from Firebase...');
+      // Try primary database first
+      console.log('📖 Reading from primary database...');
       const firebaseData = await dbService.getSubmissions();
-      console.log(`✅ Firebase: ${firebaseData.length} submissions`);
+      console.log(`✅ Primary DB: ${firebaseData.length} submissions`);
       return firebaseData;
     } catch (firebaseError) {
-      console.error('❌ Firebase failed, trying Appwrite...', firebaseError);
+      console.error('❌ Primary DB failed, trying backup...', firebaseError);
       
       try {
-        // Fallback to Appwrite
+        // Fallback to backup database
         const appwriteData = await appwriteService.getSubmissions();
-        console.log(`✅ Appwrite: ${appwriteData.length} submissions`);
+        console.log(`✅ Backup DB: ${appwriteData.length} submissions`);
         return appwriteData;
       } catch (appwriteError) {
         console.error('❌ Both databases failed:', appwriteError);

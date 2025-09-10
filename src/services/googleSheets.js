@@ -5,12 +5,12 @@ const googleSheetsService = {
   // Get settings helper function
   async getSettings() {
     try {
-      console.log('Getting admin settings from Firebase...');
+      console.log('Getting admin settings...');
       const settings = await dbService.getAdminSettings();
-      console.log('Settings from Firebase:', settings);
+      console.log('Settings retrieved:', settings);
       return settings;
     } catch (error) {
-      console.log('Firebase failed, trying localStorage:', error);
+      console.log('Database failed, trying localStorage:', error);
       const savedSettings = localStorage.getItem('adminSettings');
       if (savedSettings) {
         try {

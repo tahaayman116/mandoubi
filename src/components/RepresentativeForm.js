@@ -21,7 +21,7 @@ function RepresentativeForm() {
   const [formData, setFormData] = useState({
     personName: '',
     totalPeople: '',
-    amountPerPerson: 50 // Default amount per person
+    amountPerPerson: ''
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);

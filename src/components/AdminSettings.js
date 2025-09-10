@@ -662,16 +662,6 @@ function AdminSettings({ isOpen, onClose }) {
                     disabled={!settings.enableGoogleSheets}
                   />
                 </div>
-                <div className="mt-2 p-3 bg-blue-50 rounded-lg border border-blue-200">
-                  <p className="text-xs text-blue-700 font-medium mb-1">هذا الرابط يدير:</p>
-                  <ul className="text-xs text-blue-600 space-y-0.5">
-                    <li>• تحديث كلمة مرور الإدارة</li>
-                    <li>• تحديث بيانات الفورم</li>
-                    <li>• إضافة وحذف التقارير</li>
-                    <li>• إدارة المندوبين</li>
-                    <li>• عرض الإحصائيات</li>
-                  </ul>
-                </div>
               </div>
 
               {/* Test Button */}
@@ -800,26 +790,6 @@ function AdminSettings({ isOpen, onClose }) {
             </div>
           </div>
 
-          {/* Instructions */}
-          <div className="bg-gradient-to-br from-amber-50/50 to-orange-50/50 rounded-xl p-6 border border-amber-200/30">
-            <div className="flex items-start">
-              <div className="w-8 h-8 bg-gradient-to-br from-amber-500 to-orange-500 rounded-lg flex items-center justify-center ml-3 mt-0.5">
-                <svg className="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div>
-                <h4 className="font-medium text-amber-800 mb-2">كيفية إعداد Google Sheets</h4>
-                <ol className="text-sm text-amber-700 space-y-1 list-decimal list-inside">
-                  <li>إنشاء Google Sheet جديد</li>
-                  <li>الذهاب إلى Extensions → Apps Script</li>
-                  <li>إنشاء دالة لاستقبال البيانات عبر POST</li>
-                  <li>نشر Script كـ Web App</li>
-                  <li>نسخ الرابط ولصقه أعلاه</li>
-                </ol>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Footer */}

@@ -219,7 +219,7 @@ function AdminDashboard() {
   }, [getRepresentativesFromAppwrite]);
 
   const handleDeleteRepresentative = async (rep) => {
-    if (window.confirm(`هل أنت متأكد من حذف "${rep.name}" من Firebase و Appwrite؟`)) {
+    if (window.confirm(`هل أنت متأكد من حذف "${rep.name}"؟`)) {
       try {
         // Delete from both databases simultaneously
         const results = await Promise.allSettled([
@@ -231,13 +231,13 @@ function AdminDashboard() {
         const appwriteSuccess = results[1].status === 'fulfilled';
         
         if (firebaseSuccess && appwriteSuccess) {
-          alert(`تم حذف "${rep.name}" من Firebase و Appwrite بنجاح`);
+          alert(`تم حذف "${rep.name}" بنجاح`);
         } else if (firebaseSuccess) {
-          alert(`تم حذف "${rep.name}" من Firebase فقط - فشل Appwrite`);
+          alert(`تم حذف "${rep.name}" من قاعدة البيانات الأساسية`);
         } else if (appwriteSuccess) {
-          alert(`تم حذف "${rep.name}" من Appwrite فقط - فشل Firebase`);
+          alert(`تم حذف "${rep.name}" من قاعدة البيانات الاحتياطية`);
         } else {
-          alert(`فشل في حذف "${rep.name}" من القاعدتين`);
+          alert(`فشل في حذف "${rep.name}"`);
         }
         
         await loadAppwriteRepresentatives(); // Refresh Appwrite data

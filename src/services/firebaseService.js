@@ -88,13 +88,13 @@ export const dbService = {
         console.log('Updating existing form settings document:', existingSettings.id);
         const result = await this.updateFormSettings(existingSettings.id, settings);
         
-        // Also save to Appwrite
+        // Also save to backup database
         try {
           const { appwriteService } = await import('./appwriteService');
           await appwriteService.saveFormSettings(settings);
-          console.log('Form settings synced to Appwrite');
+          console.log('Form settings synced to backup database');
         } catch (appwriteError) {
-          console.error('Failed to sync form settings to Appwrite:', appwriteError);
+          console.error('Failed to sync form settings to backup database:', appwriteError);
         }
         
         return result;
@@ -110,13 +110,13 @@ export const dbService = {
         
         const result = { id: docRef.id, ...settings };
         
-        // Also save to Appwrite
+        // Also save to backup database
         try {
           const { appwriteService } = await import('./appwriteService');
           await appwriteService.saveFormSettings(settings);
-          console.log('Form settings synced to Appwrite');
+          console.log('Form settings synced to backup database');
         } catch (appwriteError) {
-          console.error('Failed to sync form settings to Appwrite:', appwriteError);
+          console.error('Failed to sync form settings to backup database:', appwriteError);
         }
         
         return result;
@@ -191,7 +191,7 @@ export const dbService = {
   // Submissions
   async addSubmission(submissionData) {
     try {
-      console.log('Firebase service - adding submission:', submissionData);
+      console.log('Database service - adding submission:', submissionData);
       
       // Clean the data - remove any undefined values
       const cleanData = {};
@@ -203,7 +203,7 @@ export const dbService = {
         }
       });
       
-      console.log('Firebase service - clean data:', cleanData);
+      console.log('Database service - clean data:', cleanData);
       
       const submissionsRef = collection(db, SUBMISSIONS_COLLECTION);
       const docRef = await addDoc(submissionsRef, {
@@ -213,7 +213,7 @@ export const dbService = {
       
       const result = { id: docRef.id, ...cleanData };
       
-      // Note: Appwrite sync is handled by dualDatabaseService to avoid duplicates
+      // Note: Backup database sync is handled by dualDatabaseService to avoid duplicates
       
       return result;
     } catch (error) {
@@ -301,7 +301,7 @@ export const dbService = {
       
       const result = { id: docRef.id, ...repData, active: true };
       
-      // Note: Appwrite sync is handled by dualDatabaseService to avoid duplicates
+      // Note: Backup database sync is handled by dualDatabaseService to avoid duplicates
       
       return result;
     } catch (error) {
@@ -353,7 +353,7 @@ export const dbService = {
       const querySnapshot = await getDocs(collection(db, REPRESENTATIVES_COLLECTION));
       const deletePromises = querySnapshot.docs.map(doc => deleteDoc(doc.ref));
       await Promise.all(deletePromises);
-      console.log(`Cleared ${querySnapshot.size} representatives from Firebase`);
+      console.log(`Cleared ${querySnapshot.size} representatives from database`);
       return querySnapshot.size;
     } catch (error) {
       console.error('Error clearing all representatives:', error);
@@ -450,9 +450,9 @@ export const dbService = {
   // Admin Password Management
   async getAdminPassword() {
     try {
-      console.log('Getting admin password from Firebase...');
+      console.log('Getting admin password from database...');
       const settings = await this.getAdminSettings();
-      console.log('Admin settings from Firebase:', settings);
+      console.log('Admin settings from database:', settings);
       const password = settings?.adminPassword || 'admin123';
       console.log('Retrieved password:', password);
       return password;
@@ -467,7 +467,7 @@ export const dbService = {
 
   async updateAdminPassword(newPassword) {
     try {
-      console.log('Updating admin password in Firebase:', newPassword);
+      console.log('Updating admin password in database:', newPassword);
       const currentSettings = await this.getAdminSettings();
       console.log('Current settings before update:', currentSettings);
       
