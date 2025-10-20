@@ -26,7 +26,7 @@ function AdminDashboard() {
   } = useFirebaseAuth();
   const [activeTab, setActiveTab] = useState('overview');
   const [showAddForm, setShowAddForm] = useState(false);
-  const [newRep, setNewRep] = useState({ name: '', role: 'مندوب', location: '' });
+  const [newRep, setNewRep] = useState({ name: '', role: 'مندوب', location: '', phone: '' });
   const [bulkAddMode, setBulkAddMode] = useState(false);
   const [bulkRepData, setBulkRepData] = useState('');
   const [searchTerm, setSearchTerm] = useState('');
@@ -61,7 +61,7 @@ function AdminDashboard() {
           console.error('❌ Failed to add representative');
         }
         
-        setNewRep({ name: '', role: 'مندوب', location: '' });
+        setNewRep({ name: '', role: 'مندوب', location: '', phone: '' });
         setShowAddForm(false);
       } catch (error) {
         console.error('Error adding representative:', error);
@@ -80,23 +80,23 @@ function AdminDashboard() {
     // Parse and validate data
     lines.forEach((line, index) => {
       const parts = line.split(',').map(part => part.trim());
-      if (parts.length !== 3) {
-        errors.push(`السطر ${index + 1}: تنسيق غير صحيح`);
+      if (parts.length !== 4) {
+        errors.push(`السطر ${index + 1}: تنسيق غير صحيح - يجب أن يحتوي على 4 عناصر (الاسم,النوع,المكان,رقم الهاتف)`);
         return;
       }
       
-      const [name, role, location] = parts;
-      if (!name || !role || !location) {
+      const [name, role, location, phone] = parts;
+      if (!name || !role || !location || !phone) {
         errors.push(`السطر ${index + 1}: بيانات ناقصة`);
         return;
       }
       
-      if (role !== 'مندوب' && role !== 'مشرف') {
-        errors.push(`السطر ${index + 1}: النوع يجب أن يكون "مندوب" أو "مشرف"`);
+      if (role !== 'مندوب') {
+        errors.push(`السطر ${index + 1}: النوع يجب أن يكون "مندوب"`);
         return;
       }
       
-      representatives.push({ name, role, location });
+      representatives.push({ name, role, location, phone });
     });
     
     if (errors.length > 0) {
@@ -258,11 +258,36 @@ function AdminDashboard() {
     };
   }, [submissions, representatives]);
 
-  const chartData = submissions?.map(sub => ({
-    name: sub.villageName,
-    people: sub.totalPeople,
-    amount: sub.totalAmount
-  })) || [];
+  const chartData = useMemo(() => {
+    if (!submissions || submissions.length === 0) return [];
+    
+    const villageData = {};
+    
+    submissions.forEach(sub => {
+      const villageName = sub.villageName || 'غير محدد';
+      if (!villageData[villageName]) {
+        villageData[villageName] = {
+          name: villageName,
+          people: 0,
+          amount: 0,
+          potentialVotes: 0,
+          actualVotes: 0
+        };
+      }
+      
+      villageData[villageName].people += parseInt(sub.totalPeople) || 0;
+      villageData[villageName].amount += parseFloat(sub.totalAmount) || 0;
+      
+      if (sub.voteType === 'محتملة') {
+        villageData[villageName].potentialVotes += parseInt(sub.totalPeople) || 0;
+      } else if (sub.voteType === 'فعلية') {
+        villageData[villageName].actualVotes += parseInt(sub.totalPeople) || 0;
+      }
+      // Don't add old data to votes - only show votes for new data with voteType
+    });
+    
+    return Object.values(villageData);
+  }, [submissions]);
 
 
   const filteredSubmissions = useMemo(() => {
@@ -347,23 +372,6 @@ function AdminDashboard() {
     });
   }, [filteredPersons, sortBy, getPersonDetails]);
 
-  // Statistics by role
-  const roleStats = useMemo(() => {
-    const mandoubStats = { totalPeople: 0, totalAmount: 0, submissionCount: 0 };
-    const moshrefStats = { totalPeople: 0, totalAmount: 0, submissionCount: 0 };
-    
-    submissions.forEach(sub => {
-      const rep = representatives.find(r => r.name === sub.submittedBy);
-      const role = rep?.role || 'مندوب';
-      const stats = role === 'مشرف' ? moshrefStats : mandoubStats;
-      
-      stats.totalPeople += parseInt(sub.totalPeople) || 0;
-      stats.totalAmount += parseFloat(sub.totalAmount) || 0;
-      stats.submissionCount += 1;
-    });
-    
-    return { mandoubStats, moshrefStats };
-  }, [submissions, representatives]);
 
   const exportToCSV = async () => {
     try {
@@ -415,9 +423,8 @@ function AdminDashboard() {
         <nav className="flex space-x-1 space-x-reverse bg-gray-100 p-1 rounded-lg shadow-inner">
           {[
             { id: 'overview', label: '📊 نظرة عامة' },
-            { id: 'representatives', label: '👥 إضافة مندوب أو مشرف' },
+            { id: 'representatives', label: '👥 إضافة مندوب' },
             { id: 'reports', label: '📈 التقارير' },
-            { id: 'statistics', label: '📊 إحصائيات الأدوار' }
           ].map(tab => (
             <button
               key={tab.id}
@@ -438,15 +445,16 @@ function AdminDashboard() {
       {activeTab === 'overview' && (
         <div className="space-y-8">
           {/* Enhanced KPI Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* إجمالي الأشخاص المحتملين */}
+            <div className="bg-gradient-to-br from-gray-400 via-gray-500 to-gray-600 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-blue-100 text-sm font-medium">👥 إجمالي الأشخاص</p>
-                  <p className="text-3xl font-bold mt-2">{formatArabicNumber(totalStats.totalPeople)}</p>
-                  <p className="text-blue-200 text-xs mt-1">في {formatArabicNumber(totalStats.totalVillages)} قرية</p>
+                  <p className="text-gray-100 text-sm font-medium">🗳️ أشخاص محتملين</p>
+                  <p className="text-3xl font-bold mt-2">{formatArabicNumber(submissions.filter(s => s.voteType === 'محتملة').reduce((sum, s) => sum + (parseInt(s.totalPeople) || 0), 0))}</p>
+                  <p className="text-gray-200 text-xs mt-1">محتمل</p>
                 </div>
-                <div className="bg-blue-400 bg-opacity-30 rounded-full p-3">
+                <div className="bg-gray-300 bg-opacity-30 rounded-full p-3">
                   <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
                   </svg>
@@ -454,13 +462,29 @@ function AdminDashboard() {
               </div>
             </div>
 
+            {/* إجمالي الأشخاص الفعليين */}
+            <div className="bg-gradient-to-br from-green-500 via-green-600 to-green-700 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-green-100 text-sm font-medium">✅ أشخاص فعليين</p>
+                  <p className="text-3xl font-bold mt-2">{formatArabicNumber(submissions.filter(s => s.voteType === 'فعلية').reduce((sum, s) => sum + (parseInt(s.totalPeople) || 0), 0))}</p>
+                  <p className="text-green-200 text-xs mt-1">فعلي</p>
+                </div>
+                <div className="bg-green-400 bg-opacity-30 rounded-full p-3">
+                  <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M13 6a3 3 0 11-6 0 3 3 0 016 0zM18 8a2 2 0 11-4 0 2 2 0 014 0zM14 15a4 4 0 00-8 0v3h8v-3z"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
 
+            {/* إجمالي المبلغ المحتمل */}
             <div className="bg-gradient-to-br from-purple-500 via-purple-600 to-purple-700 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-purple-100 text-sm font-medium">💰 إجمالي المبلغ</p>
-                  <p className="text-3xl font-bold mt-2">{formatArabicNumber(totalStats.totalAmount)} ج</p>
-                  <p className="text-purple-200 text-xs mt-1">المبلغ الإجمالي</p>
+                  <p className="text-purple-100 text-sm font-medium">💰 مبلغ محتمل</p>
+                  <p className="text-3xl font-bold mt-2">{formatArabicNumber(submissions.filter(s => s.voteType === 'محتملة').reduce((sum, s) => sum + (parseFloat(s.totalAmount) || 0), 0))} ج</p>
+                  <p className="text-purple-200 text-xs mt-1">محتمل</p>
                 </div>
                 <div className="bg-purple-400 bg-opacity-30 rounded-full p-3">
                   <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
@@ -470,6 +494,23 @@ function AdminDashboard() {
               </div>
             </div>
 
+            {/* إجمالي المبلغ الفعلي */}
+            <div className="bg-gradient-to-br from-emerald-500 via-emerald-600 to-emerald-700 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-emerald-100 text-sm font-medium">💵 مبلغ فعلي</p>
+                  <p className="text-3xl font-bold mt-2">{formatArabicNumber(submissions.filter(s => s.voteType === 'فعلية').reduce((sum, s) => sum + (parseFloat(s.totalAmount) || 0), 0))} ج</p>
+                  <p className="text-emerald-200 text-xs mt-1">فعلي</p>
+                </div>
+                <div className="bg-emerald-400 bg-opacity-30 rounded-full p-3">
+                  <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M4 4a2 2 0 00-2 2v4a2 2 0 002 2V6h10a2 2 0 00-2-2H4zm2 6a2 2 0 012-2h8a2 2 0 012 2v4a2 2 0 01-2 2H8a2 2 0 01-2-2v-4zm6 4a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd"/>
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            {/* عدد القرى */}
             <div className="bg-gradient-to-br from-orange-500 via-orange-600 to-orange-700 rounded-xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1">
               <div className="flex items-center justify-between">
                 <div>
@@ -487,41 +528,21 @@ function AdminDashboard() {
           </div>
 
           {/* Charts Section */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 gap-6">
             <div className="card shadow-lg border-t-4 border-t-primary-500">
-              <h3 className="text-xl font-bold mb-6 text-gray-900">📊 إحصائيات القرى</h3>
-              <ResponsiveContainer width="100%" height={350}>
-                <BarChart data={chartData.sort((a, b) => b.people - a.people).slice(0, 10)}>
+              <h3 className="text-xl font-bold mb-6 text-gray-900">📊 إحصائيات جميع القرى</h3>
+              <ResponsiveContainer width="100%" height={600}>
+                <BarChart data={chartData.sort((a, b) => b.people - a.people)}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>
-                  <XAxis dataKey="name" stroke="#64748b"/>
+                  <XAxis dataKey="name" stroke="#64748b" angle={-45} textAnchor="end" height={100}/>
                   <YAxis stroke="#64748b"/>
                   <Tooltip />
-                  <Bar dataKey="people" fill="#3b82f6" radius={[4, 4, 0, 0]} name="إجمالي الأشخاص"/>
-                  <Bar dataKey="amount" fill="#22c55e" radius={[4, 4, 0, 0]} name="المبلغ"/>
+                  <Bar dataKey="potentialVotes" fill="#9ca3af" radius={[4, 4, 0, 0]} name="🗳️ أصوات محتملة"/>
+                  <Bar dataKey="actualVotes" fill="#10b981" radius={[4, 4, 0, 0]} name="✅ أصوات فعلية"/>
                 </BarChart>
               </ResponsiveContainer>
             </div>
 
-            <div className="card shadow-lg border-t-4 border-t-green-500">
-              <h3 className="text-lg font-semibold mb-4 text-gray-900">📊 إحصائيات المشروع</h3>
-              <div className="text-center py-8">
-                <div className="text-6xl mb-4">📈</div>
-                <div className="space-y-3">
-                  <div className="bg-blue-50 p-4 rounded-lg">
-                    <div className="text-2xl font-bold text-blue-600">{formatArabicNumber(totalStats.totalPeople)}</div>
-                    <div className="text-sm text-blue-700">إجمالي الأشخاص</div>
-                  </div>
-                  <div className="bg-green-50 p-4 rounded-lg">
-                    <div className="text-2xl font-bold text-green-600">{formatArabicNumber(totalStats.totalAmount)} ج</div>
-                    <div className="text-sm text-green-700">إجمالي المبلغ</div>
-                  </div>
-                  <div className="bg-orange-50 p-4 rounded-lg">
-                    <div className="text-2xl font-bold text-orange-600">{formatArabicNumber(totalStats.totalVillages)}</div>
-                    <div className="text-sm text-orange-700">عدد القرى</div>
-                  </div>
-                </div>
-              </div>
-            </div>
           </div>
         </div>
       )}
@@ -530,13 +551,13 @@ function AdminDashboard() {
       {activeTab === 'representatives' && (
         <div className="space-y-6">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            <h2 className="text-2xl font-bold text-gray-900">👥 إدارة المندوبين والمشرفين</h2>
+            <h2 className="text-2xl font-bold text-gray-900">👥 إدارة المندوبين</h2>
             <div className="flex gap-2">
               <button
                 onClick={() => setShowAddForm(true)}
                 className="btn-primary flex items-center gap-2 shadow-lg"
               >
-                ➕ إضافة مندوب أو مشرف
+                ➕ إضافة مندوب
               </button>
               <button
                 onClick={handleClearAllData}
@@ -550,7 +571,7 @@ function AdminDashboard() {
           {showAddForm && (
             <div className="card shadow-lg border-l-4 border-l-primary-500">
               <h3 className="text-lg font-semibold mb-4 text-gray-900">
-                إضافة مندوبين أو مشرفين جدد
+                إضافة مندوبين جدد
               </h3>
               
               <div className="mb-4">
@@ -589,7 +610,6 @@ function AdminDashboard() {
                     required
                   >
                     <option value="مندوب">مندوب</option>
-                    <option value="مشرف">مشرف</option>
                   </select>
                   <input
                     type="text"
@@ -599,7 +619,15 @@ function AdminDashboard() {
                     className="input-field"
                     required
                   />
-                  <div className="md:col-span-3 flex space-x-2 space-x-reverse">
+                  <input
+                    type="tel"
+                    placeholder="رقم الهاتف"
+                    value={newRep.phone}
+                    onChange={(e) => setNewRep({...newRep, phone: e.target.value})}
+                    className="input-field"
+                    required
+                  />
+                  <div className="md:col-span-4 flex space-x-2 space-x-reverse">
                     <button type="submit" className="btn-primary">إضافة</button>
                     <button 
                       type="button" 
@@ -617,15 +645,15 @@ function AdminDashboard() {
                       📝 أدخل البيانات بالتنسيق التالي (كل سطر شخص واحد):
                     </p>
                     <p className="text-sm text-blue-600 font-mono">
-                      الاسم,النوع,المكان
+                      الاسم,النوع,المكان,رقم الهاتف
                     </p>
                     <p className="text-xs text-blue-500 mt-1">
-                      مثال: أحمد محمد,مندوب,القاهرة
+                      مثال: أحمد محمد,مندوب,القاهرة,01234567890
                     </p>
                   </div>
                   
                   <textarea
-                    placeholder="أحمد محمد,مندوب,القاهرة&#10;فاطمة علي,مشرف,الجيزة&#10;محمد حسن,مندوب,الإسكندرية"
+                    placeholder="أحمد محمد,مندوب,القاهرة,01234567890&#10;فاطمة علي,مندوب,الجيزة,01098765432&#10;محمد حسن,مندوب,الإسكندرية,01555123456"
                     value={bulkRepData}
                     onChange={(e) => setBulkRepData(e.target.value)}
                     className="input-field min-h-32"
@@ -673,6 +701,9 @@ function AdminDashboard() {
                       📍 المكان
                     </th>
                     <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
+                      📱 رقم الهاتف
+                    </th>
+                    <th className="px-6 py-4 text-right text-xs font-bold text-gray-600 uppercase tracking-wider">
                       ⚙️ الإجراءات
                     </th>
                   </tr>
@@ -684,16 +715,15 @@ function AdminDashboard() {
                         {rep.name}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                        <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                          rep.role === 'مشرف' 
-                            ? 'bg-purple-100 text-purple-800' 
-                            : 'bg-blue-100 text-blue-800'
-                        }`}>
+                        <span className="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-blue-100 text-blue-800">
                           {rep.role || 'مندوب'}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         📍 {rep.location || 'غير محدد'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                        📱 {rep.phone || 'غير محدد'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                         <button
@@ -774,9 +804,8 @@ function AdminDashboard() {
                     onChange={(e) => setRoleFilter(e.target.value)}
                     className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm bg-white shadow-sm min-w-[120px]"
                   >
-                    <option value="all">جميع الأدوار</option>
+                    <option value="all">جميع المندوبين</option>
                     <option value="مندوب">مندوب</option>
-                    <option value="مشرف">مشرف</option>
                   </select>
                 </div>
 
@@ -878,6 +907,12 @@ function AdminDashboard() {
                     <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider border-l border-gray-200">
                       إجمالي الأشخاص
                     </th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider border-l border-gray-200">
+                      أصوات محتملة
+                    </th>
+                    <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider border-l border-gray-200">
+                      أصوات فعلية
+                    </th>
                     <th className="px-6 py-4 text-center text-xs font-semibold text-gray-600 uppercase tracking-wider">
                       المبلغ الإجمالي
                     </th>
@@ -889,7 +924,7 @@ function AdminDashboard() {
                 <tbody className="bg-white divide-y divide-gray-200">
                   {!sortedPersons || sortedPersons.length === 0 ? (
                     <tr>
-                      <td colSpan="5" className="px-6 py-16 text-center">
+                      <td colSpan="7" className="px-6 py-16 text-center">
                         <div className="flex flex-col items-center justify-center text-gray-500">
                           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
                             <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -930,12 +965,8 @@ function AdminDashboard() {
                               </div>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-center border-l border-gray-200">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                (representatives.find(r => r.name === person)?.role || 'مندوب') === 'مشرف' 
-                                  ? 'bg-purple-100 text-purple-800' 
-                                  : 'bg-blue-100 text-blue-800'
-                              }`}>
-                                {(representatives.find(r => r.name === person)?.role || 'مندوب') === 'مشرف' ? '👨‍💼 مشرف' : '👤 مندوب'}
+                              <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                                👤 مندوب
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-center border-l border-gray-200">
@@ -946,6 +977,16 @@ function AdminDashboard() {
                             <td className="px-6 py-4 whitespace-nowrap text-center border-l border-gray-200">
                               <span className="text-sm font-medium text-gray-900">
                                 {formatArabicNumber(personDetails.totalPeople)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center border-l border-gray-200">
+                              <span className="text-sm font-medium text-blue-600">
+                                🗳️ {formatArabicNumber(personDetails.submissions.filter(s => s.voteType === 'محتملة').reduce((sum, s) => sum + (parseInt(s.totalPeople) || 0), 0))}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 whitespace-nowrap text-center border-l border-gray-200">
+                              <span className="text-sm font-medium text-green-600">
+                                ✅ {formatArabicNumber(personDetails.submissions.filter(s => s.voteType === 'فعلية').reduce((sum, s) => sum + (parseInt(s.totalPeople) || 0), 0))}
                               </span>
                             </td>
                             <td className="px-6 py-4 whitespace-nowrap text-center border-l border-gray-200">
@@ -975,68 +1016,6 @@ function AdminDashboard() {
         </div>
       )}
 
-      {/* Statistics Tab */}
-      {activeTab === 'statistics' && (
-        <div className="space-y-6">
-          <h2 className="text-2xl font-bold text-gray-900">📊 إحصائيات الأدوار</h2>
-          
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* مندوب Statistics */}
-            <div className="card shadow-lg border-t-4 border-t-blue-500">
-              <h3 className="text-xl font-bold mb-6 text-blue-700 flex items-center">
-                👤 إحصائيات المندوبين
-              </h3>
-              <div className="space-y-4">
-                <div className="bg-blue-50 p-4 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <span className="text-blue-700 font-medium">إجمالي الأشخاص</span>
-                    <span className="text-2xl font-bold text-blue-800">{formatArabicNumber(roleStats.mandoubStats.totalPeople)}</span>
-                  </div>
-                </div>
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <span className="text-green-700 font-medium">إجمالي المبلغ</span>
-                    <span className="text-2xl font-bold text-green-800">{formatArabicNumber(roleStats.mandoubStats.totalAmount)} ج</span>
-                  </div>
-                </div>
-                <div className="bg-orange-50 p-4 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <span className="text-orange-700 font-medium">عدد الإرسالات</span>
-                    <span className="text-2xl font-bold text-orange-800">{formatArabicNumber(roleStats.mandoubStats.submissionCount)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* مشرف Statistics */}
-            <div className="card shadow-lg border-t-4 border-t-purple-500">
-              <h3 className="text-xl font-bold mb-6 text-purple-700 flex items-center">
-                👑 إحصائيات المشرفين
-              </h3>
-              <div className="space-y-4">
-                <div className="bg-purple-50 p-4 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <span className="text-purple-700 font-medium">إجمالي الأشخاص</span>
-                    <span className="text-2xl font-bold text-purple-800">{formatArabicNumber(roleStats.moshrefStats.totalPeople)}</span>
-                  </div>
-                </div>
-                <div className="bg-green-50 p-4 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <span className="text-green-700 font-medium">إجمالي المبلغ</span>
-                    <span className="text-2xl font-bold text-green-800">{formatArabicNumber(roleStats.moshrefStats.totalAmount)} ج</span>
-                  </div>
-                </div>
-                <div className="bg-orange-50 p-4 rounded-lg">
-                  <div className="flex justify-between items-center">
-                    <span className="text-orange-700 font-medium">عدد الإرسالات</span>
-                    <span className="text-2xl font-bold text-orange-800">{formatArabicNumber(roleStats.moshrefStats.submissionCount)}</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Professional Person Details Modal */}
       {showPersonDetails && selectedPerson && (
@@ -1060,12 +1039,8 @@ function AdminDashboard() {
                         <div>
                           <h2 className="text-2xl font-bold text-gray-900">{typeof selectedPerson === 'string' ? selectedPerson : selectedPerson.name}</h2>
                           <div className="flex items-center gap-3 mt-1">
-                            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              personDetails.role === 'مشرف' 
-                                ? 'bg-purple-100 text-purple-800' 
-                                : 'bg-blue-100 text-blue-800'
-                            }`}>
-                              {personDetails.role === 'مشرف' ? '👨‍💼 مشرف' : '👤 مندوب'}
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                              👤 مندوب
                             </span>
                           </div>
                         </div>
@@ -1084,7 +1059,7 @@ function AdminDashboard() {
                   <div className="overflow-y-auto max-h-[calc(95vh-120px)]">
                     {/* Enhanced Statistics Cards */}
                     <div className="p-8 bg-gray-50">
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                         <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-blue-500 hover:shadow-xl transition-shadow">
                           <div className="flex items-center justify-between">
                             <div>
@@ -1099,17 +1074,31 @@ function AdminDashboard() {
                           </div>
                         </div>
                         
+                        <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-purple-500 hover:shadow-xl transition-shadow">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="text-sm font-medium text-gray-600">إجمالي المبلغ المحتمل</h3>
+                              <p className="text-3xl font-bold text-purple-600 mt-2">
+                                {formatArabicNumber(personDetails.submissions.filter(s => s.voteType === 'محتملة').reduce((sum, s) => sum + (parseFloat(s.totalAmount) || 0), 0))} ج
+                              </p>
+                              <p className="text-sm text-gray-500">💰 مبلغ محتمل</p>
+                            </div>
+                            <div className="bg-purple-100 p-3 rounded-full">
+                              <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                              </svg>
+                            </div>
+                          </div>
+                        </div>
+                        
                         <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-green-500 hover:shadow-xl transition-shadow">
                           <div className="flex items-center justify-between">
                             <div>
-                              <h3 className="text-sm font-medium text-gray-600">إجمالي المبلغ</h3>
-                              <p className="text-3xl font-bold text-green-600 mt-2">{formatArabicNumber(personDetails.totalAmount)} ج</p>
-                              <div className="flex items-center mt-2">
-                                <div className="w-full bg-gray-200 rounded-full h-2">
-                                  <div className="bg-green-500 h-2 rounded-full" style={{width: `${completionRate}%`}}></div>
-                                </div>
-                                <span className="text-xs text-gray-500 ml-2">{completionRate}%</span>
-                              </div>
+                              <h3 className="text-sm font-medium text-gray-600">إجمالي المبلغ الفعلي</h3>
+                              <p className="text-3xl font-bold text-green-600 mt-2">
+                                {formatArabicNumber(personDetails.submissions.filter(s => s.voteType === 'فعلية').reduce((sum, s) => sum + (parseFloat(s.totalAmount) || 0), 0))} ج
+                              </p>
+                              <p className="text-sm text-gray-500">💵 مبلغ فعلي</p>
                             </div>
                             <div className="bg-green-100 p-3 rounded-full">
                               <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -1119,20 +1108,6 @@ function AdminDashboard() {
                           </div>
                         </div>
                         
-                        <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-purple-500 hover:shadow-xl transition-shadow">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h3 className="text-sm font-medium text-gray-600">المبلغ الإجمالي</h3>
-                              <p className="text-3xl font-bold text-purple-600 mt-2">{formatArabicNumber(personDetails.totalAmount)}</p>
-                              <p className="text-sm text-gray-500">جنيه مصري</p>
-                            </div>
-                            <div className="bg-purple-100 p-3 rounded-full">
-                              <svg className="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
-                              </svg>
-                            </div>
-                          </div>
-                        </div>
                         
                         <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-orange-500 hover:shadow-xl transition-shadow">
                           <div className="flex items-center justify-between">
@@ -1144,6 +1119,40 @@ function AdminDashboard() {
                             <div className="bg-orange-100 p-3 rounded-full">
                               <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 00-2 2z" />
+                              </svg>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-gray-500 hover:shadow-xl transition-shadow">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="text-sm font-medium text-gray-600">أصوات محتملة</h3>
+                              <p className="text-3xl font-bold text-gray-600 mt-2">
+                                {formatArabicNumber(personDetails.submissions.filter(s => s.voteType === 'محتملة').reduce((sum, s) => sum + (parseInt(s.totalPeople) || 0), 0))}
+                              </p>
+                              <p className="text-sm text-gray-500">🗳️ شخص محتمل</p>
+                            </div>
+                            <div className="bg-gray-100 p-3 rounded-full">
+                              <svg className="w-8 h-8 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v6a2 2 0 002 2h6a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                              </svg>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="bg-white p-6 rounded-xl shadow-lg border-l-4 border-emerald-500 hover:shadow-xl transition-shadow">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="text-sm font-medium text-gray-600">أصوات فعلية</h3>
+                              <p className="text-3xl font-bold text-emerald-600 mt-2">
+                                {formatArabicNumber(personDetails.submissions.filter(s => s.voteType === 'فعلية').reduce((sum, s) => sum + (parseInt(s.totalPeople) || 0), 0))}
+                              </p>
+                              <p className="text-sm text-gray-500">✅ شخص فعلي</p>
+                            </div>
+                            <div className="bg-emerald-100 p-3 rounded-full">
+                              <svg className="w-8 h-8 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                               </svg>
                             </div>
                           </div>

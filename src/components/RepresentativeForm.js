@@ -5,23 +5,40 @@ import googleSheetsService from '../services/googleSheets';
 function RepresentativeForm() {
   const { userProfile, addSubmission, representatives, loadRepresentatives, submissions, loadSubmissions } = useFirebaseAuth();
   
-  // Load representatives and submissions for autocomplete - only once
+  // Load representatives and submissions for autocomplete - refresh when component mounts
   React.useEffect(() => {
     const loadData = async () => {
       try {
+        console.log('Loading fresh representatives and submissions data...');
         await loadRepresentatives();
         await loadSubmissions();
+        console.log('Data loaded successfully');
       } catch (error) {
         console.error('Error loading data:', error);
       }
     };
     loadData();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Empty dependency array to run only once
+  }, [loadRepresentatives, loadSubmissions]); // Load once on mount
+  
+  // Also refresh data when the component becomes visible (focus)
+  React.useEffect(() => {
+    const handleFocus = async () => {
+      try {
+        console.log('Window focused - refreshing representatives data...');
+        await loadRepresentatives();
+      } catch (error) {
+        console.error('Error refreshing data on focus:', error);
+      }
+    };
+    
+    window.addEventListener('focus', handleFocus);
+    return () => window.removeEventListener('focus', handleFocus);
+  }, [loadRepresentatives]);
   const [formData, setFormData] = useState({
     personName: '',
     totalPeople: '',
-    amountPerPerson: ''
+    amountPerPerson: '',
+    voteType: 'محتملة' // Default to potential votes
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -29,7 +46,7 @@ function RepresentativeForm() {
   const [searchTerm, setSearchTerm] = useState('');
   const dropdownRef = useRef(null);
 
-  // Get unique person names for autocomplete from representatives (مندوبين/مشرفين)
+  // Get unique person names for autocomplete from representatives (مندوبين)
   const existingPersons = useMemo(() => {
     const persons = new Set();
     
@@ -87,7 +104,7 @@ function RepresentativeForm() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleInputChange = (e) => {
+  const handleInputChange = async (e) => {
     const { name, value } = e.target;
     if (name === 'personName') {
       setSearchTerm(value);
@@ -96,6 +113,16 @@ function RepresentativeForm() {
         [name]: value
       }));
       setShowDropdown(true);
+      
+      // Refresh representatives data when user starts typing
+      if (value.length > 0) {
+        try {
+          console.log('Refreshing representatives data...');
+          await loadRepresentatives();
+        } catch (error) {
+          console.error('Error refreshing representatives:', error);
+        }
+      }
     } else {
       setFormData(prev => ({
         ...prev,
@@ -104,13 +131,21 @@ function RepresentativeForm() {
     }
   };
 
-  const handlePersonSelect = (personName) => {
+  const handlePersonSelect = async (personName) => {
     setFormData(prev => ({
       ...prev,
       personName: personName
     }));
     setSearchTerm(personName);
     setShowDropdown(false);
+    
+    // Refresh data to ensure we have latest info for selected person
+    try {
+      console.log('Refreshing data for selected person...');
+      await loadRepresentatives();
+    } catch (error) {
+      console.error('Error refreshing data for selected person:', error);
+    }
   };
 
   const calculateTotal = () => {
@@ -171,7 +206,8 @@ function RepresentativeForm() {
       setFormData({
         personName: '',
         totalPeople: '',
-        amountPerPerson: 50
+        amountPerPerson: 50,
+        voteType: 'محتملة'
       });
     } catch (error) {
       console.error('Submission error:', error);
@@ -299,8 +335,53 @@ function RepresentativeForm() {
                   readOnly
                 />
               </div>
-              <p className="text-xs text-gray-500 mt-1">المكان يتم تحديده تلقائياً من بيانات الشخص المختار</p>
             </div>
+            
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                رقم الهاتف
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M2 3a1 1 0 011-1h2.153a1 1 0 01.986.836l.74 4.435a1 1 0 01-.54 1.06l-1.548.773a11.037 11.037 0 006.105 6.105l.774-1.548a1 1 0 011.059-.54l4.435.74a1 1 0 01.836.986V17a1 1 0 01-1 1h-2C7.82 18 2 12.18 2 5V3z" />
+                  </svg>
+                </div>
+                <input
+                  type="text"
+                  value={representatives.find(rep => rep.name === formData.personName)?.phone || 'اختر الشخص أولاً'}
+                  className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl bg-gray-100 text-gray-600 cursor-not-allowed"
+                  placeholder="سيتم تحديد رقم الهاتف تلقائياً حسب الشخص المختار"
+                  disabled
+                  readOnly
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <label htmlFor="voteType" className="block text-sm font-semibold text-gray-700 mb-2">
+              نوع الأصوات *
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <svg className="w-5 h-5 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <select
+                id="voteType"
+                name="voteType"
+                value={formData.voteType}
+                onChange={handleInputChange}
+                className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-gray-50/50 backdrop-blur-sm"
+                required
+              >
+                <option value="محتملة">🗳️ أصوات محتملة</option>
+                <option value="فعلية">✅ أصوات فعلية</option>
+              </select>
+            </div>
+            <p className="text-xs text-gray-500 mt-1">اختر نوع الأصوات المراد تسجيلها</p>
           </div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">

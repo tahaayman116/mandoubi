@@ -257,16 +257,14 @@ export function FirebaseAuthProvider({ children }) {
       
       console.log('Final submission data:', newSubmission);
       
-      // Use dual database service to save to both Firebase and Appwrite
-      const { dualDatabaseService } = await import('../services/dualDatabaseService');
-      const result = await dualDatabaseService.addSubmission(newSubmission);
-      console.log('📝 Submission added to both databases:', result);
+      // Add to Firebase database
+      const result = await dbService.addSubmission(newSubmission);
+      console.log('📝 Submission added to Firebase:', result);
       
       // Send to Google Apps Script automatically
       await sendToGoogleSheets(newSubmission, 'add_submission');
       
-      // Return Firebase result for compatibility
-      return result.firebase;
+      return result;
     } catch (error) {
       console.error('Error adding submission:', error);
       throw error;
@@ -295,16 +293,14 @@ export function FirebaseAuthProvider({ children }) {
 
   const addRepresentative = async (repData) => {
     try {
-      // Use dual database service to save to both Firebase and Appwrite
-      const { dualDatabaseService } = await import('../services/dualDatabaseService');
-      const result = await dualDatabaseService.addRepresentative(repData);
-      console.log('📝 Representative added to both databases:', result);
+      // Add to Firebase database
+      const result = await dbService.addRepresentative(repData);
+      console.log('📝 Representative added to Firebase:', result);
       
       // Send to Google Apps Script automatically
       await sendToGoogleSheets(repData, 'add_representative');
       
-      // Return Firebase result for compatibility
-      return result.firebase;
+      return result;
     } catch (error) {
       throw error;
     }
@@ -358,13 +354,45 @@ export function FirebaseAuthProvider({ children }) {
   };
 
 
-  // Get data from Appwrite
+  // Get data from Firebase and ensure phone field exists
   const getRepresentatives = async () => {
     try {
       const result = await dbService.getRepresentatives();
       console.log('getRepresentatives called, result:', result);
-      setRepresentatives(result);
-      return result;
+      
+      // Check if any representatives are missing phone field and update them
+      const needsUpdate = result.filter(rep => !rep.phone);
+      if (needsUpdate.length > 0) {
+        console.log(`Found ${needsUpdate.length} representatives without phone field, updating...`);
+        
+        // Update each representative without phone field
+        for (const rep of needsUpdate) {
+          try {
+            await dbService.updateRepresentative(rep.id, { 
+              ...rep, 
+              phone: 'غير محدد' 
+            });
+            console.log(`Updated representative ${rep.name} with default phone`);
+          } catch (updateError) {
+            console.error(`Failed to update representative ${rep.name}:`, updateError);
+          }
+        }
+        
+        // Reload data after updates
+        const updatedResult = await dbService.getRepresentatives();
+        setRepresentatives(updatedResult);
+        return updatedResult;
+      }
+      
+      // Ensure all representatives have phone field (fallback)
+      const updatedResult = result.map(rep => ({
+        ...rep,
+        phone: rep.phone || 'غير محدد'
+      }));
+      
+      console.log('Representatives after phone field check:', updatedResult);
+      setRepresentatives(updatedResult);
+      return updatedResult;
     } catch (error) {
       console.error('Error in getRepresentatives:', error);
       throw error;
