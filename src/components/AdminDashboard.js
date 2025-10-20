@@ -1023,7 +1023,6 @@ function AdminDashboard() {
           <div className="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[95vh] overflow-hidden">
             {(() => {
               const personDetails = typeof selectedPerson === 'string' ? getPersonDetails(selectedPerson) : selectedPerson;
-              const completionRate = personDetails.totalPeople > 0 ? Math.round((personDetails.totalReceived / personDetails.totalPeople) * 100) : 0;
               
               return (
                 <>
